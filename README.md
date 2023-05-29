@@ -1,4 +1,4 @@
-# Dual number for uncertainty propagaion
+# Dual number for uncertainty propagation
 
 Dual number is a way to calculate the precise number of (first-order) derivative of common math formula. 
 
