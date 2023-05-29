@@ -1,3 +1,13 @@
+/**************************************************************************
+ * Author: Yicheng Feng
+ * Email: fengyich@outlook.com
+ * Note: dual number to calculate precise values of first-order derivative
+ *       of multi-variable functions with common math formula
+ *       this class is wrapped with ROOT for I/O and plotting
+ *       this class can also calculate systematic uncertainties
+ *       with Barlow's prescription: https://arxiv.org/abs/hep-ex/0207026
+ **************************************************************************/
+
 #ifndef MySystGraph_H
 #define MySystGraph_H
 

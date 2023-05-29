@@ -1,3 +1,11 @@
+/**************************************************************************
+ * Author: Yicheng Feng
+ * Email: fengyich@outlook.com
+ * Note: dual number to calculate precise values of first-order derivative
+ *       of multi-variable functions with common math formula
+ *       this class is wrapped with ROOT for I/O and plotting
+ **************************************************************************/
+
 #ifndef MyDualGraph_H
 #define MyDualGraph_H
 
