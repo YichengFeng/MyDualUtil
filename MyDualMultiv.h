@@ -2,7 +2,7 @@
  * Author: Yicheng Feng
  * Email: fengyich@outlook.com
  * Note: dual number to calculate precise values of first-order derivative
- *       of multi-variable functions with common math formula
+ *       of multi-variable functions with common math formula 
  **************************************************************************/
 
 #ifndef MyDualMultiv_H
