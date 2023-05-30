@@ -402,11 +402,11 @@ const TGraphErrors GraphErrToVal(const TGraphErrors &g1) {
 }
 
 
-//------------------------------------------------------------------------------
-const TGraphErrors GraphMoveSigma(const TGraphErrors &g1, double c) {
-	TGraphErrors ge = GraphErrToVal(g1);
-	return (g1 + c*ge);
-}
+////------------------------------------------------------------------------------
+//const TGraphErrors GraphMoveSigma(const TGraphErrors &g1, double c) {
+//	TGraphErrors ge = GraphErrToVal(g1);
+//	return (g1 + c*ge);
+//}
 
 
 //------------------------------------------------------------------------------

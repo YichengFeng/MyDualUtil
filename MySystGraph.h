@@ -363,6 +363,35 @@ public:
 		}
 	}
 
+	void SetStyleColor(Int_t style, Int_t color) {
+		if(!IsUpdated) Calc();
+		gSyst.SetFillStyle(0);
+		gAsym.SetFillStyle(0);
+		gSyst.SetFillColor(color);
+		gAsym.SetFillColor(color);
+		gSyst.SetMarkerStyle(style);
+		gAsym.SetMarkerStyle(style);
+		gStat.SetMarkerStyle(style);
+		gSyst.SetMarkerColor(color);
+		gAsym.SetMarkerColor(color);
+		gStat.SetMarkerColor(color);
+		gSyst.SetLineColor(color);
+		gAsym.SetLineColor(color);
+		gStat.SetLineColor(color);
+	}
+
+	void DrawSyst() {
+		if(!IsUpdated) Calc();
+		gSyst.Draw("P50 same");
+		gStat.Draw("PL0 same");
+	}
+
+	void DrawAsym() {
+		if(!IsUpdated) Calc();
+		gAsym.Draw("P50 same");
+		gStat.Draw("PL0 same");
+	}
+
 	void MakePlot(TString name, TH2D* hFrame, TString StrPath="systplot") {
 		TCanvas *cTmp = new TCanvas(name, name);
 		hFrame->Draw();
