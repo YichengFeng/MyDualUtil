@@ -52,6 +52,9 @@ private:
 public:
 	TGraphErrors Graph;
 
+	static int IdxNow; // the latest index
+	static const int IdxMax = 1000000; // maximal index
+
 	bool GetIsUpdated() const {
 		return IsUpdated;
 	}
@@ -115,11 +118,30 @@ public:
 		IsUpdated = false;
 	}
 
+	int AutoNewIdx() { // IdxNow range 1 ~ IdxMax-1
+		if(IdxNow>=IdxMax-1) {
+			std::cout << "MyDualGraph::IdxNow out of range! " << IdxNow << "/" << IdxMax-1 << std::endl;
+		} else {
+			IdxNow ++;
+		}
+		return IdxNow;
+	}
+
 	MyDualGraph() {
 		Reset(0);
 	}
 	MyDualGraph(int n) {
 		Reset(n);
+	}
+	MyDualGraph(const TH1 &h, bool xerror=false) {
+		Reset(h.GetXaxis()->GetNbins());
+		AutoNewIdx();
+		SetDual(IdxNow, h, true, xerror, true);
+	}
+	MyDualGraph(const TGraphErrors &g, bool xerror=false) {
+		Reset(g.GetN());
+		AutoNewIdx();
+		SetDual(IdxNow, g, true, xerror, true);
 	}
 	MyDualGraph(int indx, const TH1 &h, bool xerror=false) {
 		Reset(h.GetXaxis()->GetNbins());
@@ -134,11 +156,26 @@ public:
 		IsUpdated = false;
 	}
 	MyDualGraph(const MyDualGraph &dg) {
-		Reset(0);
-		Points = dg.Points;
+		//Reset(0);
+		//Points = dg.Points;
+		*this = dg;
 	}
 	~MyDualGraph() {
 		Reset(0);
+	}
+
+	int GetIdxOne() const {
+		if(Points.size()<=0) {
+			std::cout << "MyDualGraph::GetIdxOne() empty Points!" << std::endl;
+			return 0; // 0 is not used as an index
+		}
+		std::vector<int> list = Points[0].Py.GetList();
+		if(list.size()!=1) {
+			std::cout << "MyDualGraph::GetIdxOne() not the single index!" << std::endl;
+			return 0;
+		} else {
+			return list[0];
+		}
 	}
 
 	int GetN() const {
@@ -193,7 +230,7 @@ public:
 
 	// merge
 	// must use different bins for merge, so they should be independent
-	// this code will take care of that: #bin * -1e6
+	// this code will take care of that: #bin * -IdxMax
 	const MyDualGraph AveBin(std::vector<int> range) const {
 		std::sort( range.begin(), range.end() );
 		range.erase( unique( range.begin(), range.end() ), range.end() );
@@ -216,7 +253,7 @@ public:
 			std::vector<int> list = Points[i].Py.GetList();
 			for(int j=0; j<(int)list.size(); j++) {
 				int idx = list[j];
-				dm.SetDual(idx-1000000*i, Points[i].Py.GetDual(idx));
+				dm.SetDual(idx-IdxMax*i, Points[i].Py.GetDual(idx));
 			}
 			avey = k==0?dm:AvePlus(avey, dm);
 		}

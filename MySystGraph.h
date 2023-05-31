@@ -82,6 +82,9 @@ public:
 	TGraphErrors gSyst;
 	TGraphAsymmErrors gAsym;
 
+	static int VidNow; // the latest index
+	static const int VidMax = 1000000; // maximal index
+
 	bool GetIsUpdated() const {
 		return IsUpdated;
 	}
@@ -149,6 +152,15 @@ public:
 		return list;
 	}
 
+	int AutoNewVid() { // VidNow range 1 ~ VidMax-1
+		if(VidNow>=VidMax-1) {
+			std::cout << "MySystGraph::VidNow out of range! " << VidNow << "/" << VidMax-1 << std::endl;
+		} else {
+			VidNow ++;
+		}
+		return VidNow;
+	}
+
 	void AddVar(int idx, const MyPackGraph &pg) {
 		if(Var.count(idx)==0) {
 			Var.insert({idx, pg});
@@ -156,6 +168,10 @@ public:
 			std::cout << "MySystGraph::AddVar() index " << idx << " already exists!" << std::endl;
 		}
 		IsUpdated = false;
+	}
+	void AddVar(const MyPackGraph &pg) {
+		AutoNewVid();
+		AddVar(VidNow, pg);
 	}
 	void ChgVar(int idx, const MyPackGraph &pg) {
 		if(Var.count(idx)==0) {
@@ -167,9 +183,11 @@ public:
 	}
 	void SetVar(int idx, const MyPackGraph &pg) {
 		if(Var.count(idx)==0) {
-			Var.insert({idx, pg});
+			//Var.insert({idx, pg});
+			AddVar(idx, pg);
 		} else {
-			Var[idx] = pg;
+			//Var[idx] = pg;
+			ChgVar(idx, pg);
 		}
 		IsUpdated = false;
 	}
@@ -380,16 +398,21 @@ public:
 		gStat.SetLineColor(color);
 	}
 
-	void DrawSyst() {
+	void DrawStat(TString opt = "") {
 		if(!IsUpdated) Calc();
-		gSyst.Draw("P50 same");
-		gStat.Draw("PL0 same");
+		gStat.Draw("PL"+opt+" same");
 	}
 
-	void DrawAsym() {
+	void DrawSyst(TString opt = "") {
 		if(!IsUpdated) Calc();
-		gAsym.Draw("P50 same");
-		gStat.Draw("PL0 same");
+		gSyst.Draw("P5"+opt+" same");
+		gStat.Draw("PL"+opt+" same");
+	}
+
+	void DrawAsym(TString opt = "") {
+		if(!IsUpdated) Calc();
+		gAsym.Draw("P5"+opt+" same");
+		gStat.Draw("PL"+opt+" same");
 	}
 
 	void MakePlot(TString name, TH2D* hFrame, TString StrPath="systplot") {
