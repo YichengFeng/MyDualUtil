@@ -152,7 +152,7 @@ public:
 		return list;
 	}
 
-	int AutoNewVid() { // VidNow range 1 ~ VidMax-1
+	static int AutoNewVid() { // VidNow range 1 ~ VidMax-1
 		if(VidNow>=VidMax-1) {
 			std::cout << "MySystGraph::VidNow out of range! " << VidNow << "/" << VidMax-1 << std::endl;
 		} else {
@@ -248,7 +248,7 @@ public:
 		IsUpdated = true;
 	}
 
-	TString StrLatex(int i=0) {
+	TString StrLatex(int i=0, string symboltype="R") {
 		if(!Def.CheckIndex(i)) return TString();
 		if(!IsUpdated) Calc();
 
@@ -287,16 +287,24 @@ public:
 		strsys << std::fixed << std::setprecision(np) << sys;
 		std::stringstream strlatex;
 		if(n10==0) {
-			strlatex << strval.str() << "\\pm" << strerr.str() << "\\pm" << strsys.str();
+			if(symboltype=="L") {
+				strlatex << strval.str() << "\\pm" << strerr.str() << "\\pm" << strsys.str();
+			} else {
+				strlatex << strval.str() << "#pm" << strerr.str() << "#pm" << strsys.str();
+			}
 		} else {
-			strlatex << "(" << strval.str() << "\\pm" << strerr.str() << "\\pm" << strsys.str() << ")\\times10^{" << n10 << "}";
+			if(symboltype=="L") {
+				strlatex << "(" << strval.str() << "\\pm" << strerr.str() << "\\pm" << strsys.str() << ")\\times10^{" << n10 << "}";
+			} else {
+				strlatex << "(" << strval.str() << "#pm" << strerr.str() << "#pm" << strsys.str() << ")#times10^{" << n10 << "}";
+			}
 		}
 		TString tstrlatex = strlatex.str();
 
 		return tstrlatex;
 	}
 
-	TString StrLatexAsym(int i=0) {
+	TString StrLatexAsym(int i=0, string symboltype="R") {
 		if(!Def.CheckIndex(i)) return TString();
 		if(!IsUpdated) Calc();
 
@@ -352,9 +360,17 @@ public:
 		strsyh << std::fixed << std::setprecision(np) << syh;
 		std::stringstream strlatex;
 		if(n10==0) {
-			strlatex << strval.str() << "\\pm" << strerr.str() << "_{-" << strsyl.str() << "}^{+" << strsyh.str() << "}";
+			if(symboltype=="L") {
+				strlatex << strval.str() << "\\pm" << strerr.str() << "_{-" << strsyl.str() << "}^{+" << strsyh.str() << "}";
+			} else {
+				strlatex << strval.str() << "#pm" << strerr.str() << "_{-" << strsyl.str() << "}^{+" << strsyh.str() << "}";
+			}
 		} else {
-			strlatex << "(" << strval.str() << "\\pm" << strerr.str() << "_{-" << strsyl.str() << "}^{+" << strsyh.str() << "})\\times10^{" << n10 << "}";
+			if(symboltype=="L") {
+				strlatex << "(" << strval.str() << "\\pm" << strerr.str() << "_{-" << strsyl.str() << "}^{+" << strsyh.str() << "})\\times10^{" << n10 << "}";
+			} else {
+				strlatex << "(" << strval.str() << "#pm" << strerr.str() << "_{-" << strsyl.str() << "}^{+" << strsyh.str() << "})#times10^{" << n10 << "}";
+			}
 		}
 		TString tstrlatex = strlatex.str();
 
@@ -416,6 +432,7 @@ public:
 	}
 
 	void MakePlot(TString name, TH2D* hFrame, TString StrPath="systplot") {
+		ShiftX();
 		TCanvas *cTmp = new TCanvas(name, name);
 		hFrame->Draw();
 		double xl = hFrame->GetXaxis()->GetXmin();
@@ -426,20 +443,39 @@ public:
 		if(yl<0 && yh>0) { lineTmp = new TLine(xl,0, xh,0); lineTmp->SetLineColor(kGray); lineTmp->Draw("same"); }
 		if(yl<1 && yh>1) { lineTmp = new TLine(xl,1, xh,1); lineTmp->SetLineColor(kGray); lineTmp->Draw("same"); }
 		TGraphErrors gTmp = gStat;
+		gTmp.SetLineColor(kBlack);
+		gTmp.SetMarkerColor(kBlack);
 		gTmp.SetMarkerStyle(20);
 		gTmp.Draw("PL same");
-		TLegend *lTmp = new TLegend(0.60,0.60,0.95,0.88);
+		double bw = fabs(xh-xl) / (gTmp.GetN()+1.0);
+		for(int i=1; i<gTmp.GetN(); i++) {
+			double tmpbw = fabs(gTmp.GetX()[i]-gTmp.GetX()[i-1]);
+			if(i==1) {
+				bw = tmpbw;
+			} else {
+				bw = bw<tmpbw?bw:tmpbw;
+			}
+		}
+		TLegend *lTmp = new TLegend(0.30,0.65,0.95,0.88);
 		lTmp->SetFillStyle(0);
 		lTmp->SetBorderSize(0);
+		lTmp->SetNColumns(2);
+		lTmp->SetTextSize(0.04);
 		lTmp->AddEntry(&gTmp, "default", "lp");
+		int nsx = (int)Var.size() + 2;
+		int isx = 1;
 		int i = 0;
 		for(auto it=Var.begin(); it!=Var.end(); it++) {
 			const int &idx = it->first;
 			MyPackGraph &pg = it->second;
-			pg.g.Graph.SetMarkerStyle(24+i);
-			pg.g.Graph.SetMarkerColor(i==3?kOrange+1:i+2);
-			pg.g.Graph.SetLineColor(i==3?kOrange+1:i+2);
-			pg.g.Graph.Draw("PX0 same");
+			TGraphErrors &gVar = pg.g.Graph;
+			for(int j=0; j<gTmp.GetN(); j++) gVar.GetX()[j] += 0.6*bw*isx/nsx;
+			isx++;
+			gVar.SetMarkerStyle(24+i);
+			int col = i==3?kOrange+1:(i<8?i+2:i+3);
+			gVar.SetMarkerColor(col);
+			gVar.SetLineColor(col);
+			gVar.Draw("P same");
 			lTmp->AddEntry(&(pg.g.Graph), pg.s, "lp");
 			i++;
 		}
@@ -496,10 +532,25 @@ public:
 		return sg;
 	}
 
+	const MySystGraph MergeUnce() {
+		MySystGraph sg(*this);
+		sg.SetDef(Def.MergeUnce());
+		for(auto it=Var.begin(); it!=Var.end(); it++) {
+			int idx = it->first;
+			MyPackGraph pg = it->second;
+			pg.g = pg.g.MergeUnce();
+			sg.SetVar(idx, pg);
+		}
+		return sg;
+	}
+
 	void Write(TFile *f, TString name) const {
 		f->WriteObjectAny(this, "MySystGraph", name);
 	}
 };
+
+
+int MySystGraph::VidNow = 0;
 
 
 const MySystGraph operator+(const MySystGraph &sg1, double c) {

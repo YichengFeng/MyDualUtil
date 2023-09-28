@@ -43,7 +43,8 @@ public:
 
 	void Print() const { std::cout << "(" << Valu << ", " << Dual << ")" << std::endl; }
 
-	std::string StrLatex(double &outval, double &outerr, int &outn10, int &outnp) const {
+	std::string StrLatex(double &outval, double &outerr, int &outn10, int &outnp, string symboltype = "R") const {
+		// symboltype = "R" -- ROOT; "L" -- "Latex"
 		int n10;
 		double val, err;
 
@@ -95,18 +96,26 @@ public:
 		strerr << std::fixed << std::setprecision(np) << err;
 		std::stringstream strlatex;
 		if(n10==0) {
-			strlatex << strval.str() << "\\pm" << strerr.str();
+			if(symboltype=="L") {
+				strlatex << strval.str() << "\\pm" << strerr.str();
+			} else {
+				strlatex << strval.str() << "#pm" << strerr.str();
+			}
 		} else {
-			strlatex << "(" << strval.str() << "\\pm" << strerr.str() << ")\\times10^{" << n10 << "}";
+			if(symboltype=="L") {
+				strlatex << "(" << strval.str() << "\\pm" << strerr.str() << ")\\times10^{" << n10 << "}";
+			} else {
+				strlatex << "(" << strval.str() << "#pm" << strerr.str() << ")#times10^{" << n10 << "}";
+			}
 		}
 
 		return strlatex.str();
 	}
 
-	std::string StrLatex() const {
+	std::string StrLatex(string symboltype="R") const {
 		int outn10, outnp;
 		double outval, outerr;
-		return StrLatex(outval, outerr, outn10, outnp);
+		return StrLatex(outval, outerr, outn10, outnp, symboltype);
 	}
 };
 

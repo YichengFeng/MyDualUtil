@@ -91,9 +91,9 @@ public:
 		std::cout << ")" << std::endl;
 	}
 
-	std::string StrLatex() const {
+	std::string StrLatex(string symboltype="R") const {
 		MyDualNumber dn(Valu, GetUnce());
-		return dn.StrLatex();
+		return dn.StrLatex(symboltype);
 	}
 };
 

@@ -118,7 +118,7 @@ public:
 		IsUpdated = false;
 	}
 
-	int AutoNewIdx() { // IdxNow range 1 ~ IdxMax-1
+	static int AutoNewIdx() { // IdxNow range 1 ~ IdxMax-1
 		if(IdxNow>=IdxMax-1) {
 			std::cout << "MyDualGraph::IdxNow out of range! " << IdxNow << "/" << IdxMax-1 << std::endl;
 		} else {
@@ -222,9 +222,9 @@ public:
 		}
 	}
 
-	TString StrLatex(int i=0) const {
+	TString StrLatex(int i=0, string symboltype="R") const {
 		TString strlatex;
-		if(CheckIndex(i)) strlatex = Points[i].Py.StrLatex();
+		if(CheckIndex(i)) strlatex = Points[i].Py.StrLatex(symboltype);
 		return strlatex;
 	}
 
@@ -275,10 +275,18 @@ public:
 		return AveBin(range);
 	}
 
+	const MyDualGraph MergeUnce() {
+		if(!IsUpdated) Calc();
+		return MyDualGraph(Graph, true);
+	}
+
 	void Write(TFile *f, TString name) const {
 		f->WriteObjectAny(this, "MyDualGraph", name);
 	}
 };
+
+
+int MyDualGraph::IdxNow = 0;
 
 
 // math

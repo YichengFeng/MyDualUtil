@@ -14,6 +14,272 @@
 namespace MyToolkit
 { // namespace
 
+
+//------------------------------------------------------------------------------
+const TGraphErrors operator+(const double c, const TGraphErrors &g1) {
+
+	const int n= g1.GetN();
+	double *x1 = g1.GetX();
+	double *y1 = g1.GetY();
+	vector<double> x;
+	vector<double> xe;
+	vector<double> y;
+	vector<double> ye;
+
+	for(int i=0; i<n; i++) {
+		x.push_back(x1[i]);
+		xe.push_back(0);
+		double y1e = g1.GetErrorY(i);
+		y.push_back(y1[i]+c);
+		ye.push_back(y1e);
+	}
+
+	TGraphErrors g(x.size(), &x[0], &y[0], &xe[0], &ye[0]);
+
+	return g;
+}
+
+
+//------------------------------------------------------------------------------
+const TGraphErrors operator+(const TGraphErrors &g1, const double c) {
+
+	return c+g1;
+}
+
+
+//------------------------------------------------------------------------------
+const TGraphErrors operator*(const double c, const TGraphErrors &g1) {
+
+	const int n= g1.GetN();
+	double *x1 = g1.GetX();
+	double *y1 = g1.GetY();
+	vector<double> x;
+	vector<double> xe;
+	vector<double> y;
+	vector<double> ye;
+
+	for(int i=0; i<n; i++) {
+		x.push_back(x1[i]);
+		xe.push_back(0);
+		double y1e = g1.GetErrorY(i);
+		y.push_back(y1[i]*c);
+		ye.push_back(fabs(y1e*c));
+	}
+
+	TGraphErrors g(x.size(), &x[0], &y[0], &xe[0], &ye[0]);
+
+	return g;
+}
+
+
+//------------------------------------------------------------------------------
+const TGraphErrors operator*(const TGraphErrors &g1, const double c) {
+
+	return c*g1;
+}
+
+
+//------------------------------------------------------------------------------
+const TGraphErrors operator-(const double c, const TGraphErrors &g1) {
+
+	return c+(-1.0*g1);
+}
+
+
+//------------------------------------------------------------------------------
+const TGraphErrors operator-(const TGraphErrors &g1, const double c) {
+
+	return g1+(-1.0*c);
+}
+
+
+//------------------------------------------------------------------------------
+const TGraphErrors operator/(const TGraphErrors &g1, const double c) {
+
+	return g1*(1.0/c);
+}
+
+
+//------------------------------------------------------------------------------
+const TGraphErrors operator/(const double c, const TGraphErrors &g1) {
+
+	const int n= g1.GetN();
+	double *x1 = g1.GetX();
+	double *y1 = g1.GetY();
+	vector<double> x;
+	vector<double> xe;
+	vector<double> y;
+	vector<double> ye;
+
+	for(int i=0; i<n; i++) {
+		x.push_back(x1[i]);
+		xe.push_back(0);
+		double y1e = g1.GetErrorY(i);
+		double tmpy = c/y1[i];
+		double tmpye = c*y1e/y1[i]/y1[i];
+		if(c==0) {
+			tmpy  = 0;
+			tmpye = 0;
+		}
+		y.push_back(tmpy);
+		ye.push_back(tmpye);
+	}
+
+	TGraphErrors g(x.size(), &x[0], &y[0], &xe[0], &ye[0]);
+
+	return g;
+}
+
+//------------------------------------------------------------------------------
+const TGraphErrors operator+(const TGraphErrors &g1, const TGraphErrors &g2) {
+
+	const int n= g1.GetN();
+	double *x1 = g1.GetX();
+	double *y1 = g1.GetY();
+	double *x2 = g2.GetX();
+	double *y2 = g2.GetY();
+	vector<double> x;
+	vector<double> xe;
+	vector<double> y;
+	vector<double> ye;
+
+	for(int i=0; i<n; i++) {
+		x.push_back(x1[i]);
+		xe.push_back(0);
+		double y1e = g1.GetErrorY(i);
+		double y2e = g2.GetErrorY(i);
+		y.push_back(y1[i] + y2[i]);
+		ye.push_back(sqrt(y1e*y1e + y2e*y2e));
+	}
+
+	TGraphErrors g(x.size(), &x[0], &y[0], &xe[0], &ye[0]);
+
+	return g;
+}
+
+
+//------------------------------------------------------------------------------
+const TGraphErrors operator-(const TGraphErrors &g1, const TGraphErrors &g2) {
+
+	return g1+(-1.0*g2);
+}
+
+
+//------------------------------------------------------------------------------
+const TGraphErrors operator*(const TGraphErrors &g1, const TGraphErrors &g2) {
+
+	const int n= g1.GetN();
+	double *x1 = g1.GetX();
+	double *y1 = g1.GetY();
+	double *x2 = g2.GetX();
+	double *y2 = g2.GetY();
+	vector<double> x;
+	vector<double> xe;
+	vector<double> y;
+	vector<double> ye;
+
+	for(int i=0; i<n; i++) {
+		x.push_back(x1[i]);
+		xe.push_back(0);
+		double y1e = g1.GetErrorY(i);
+		double y2e = g2.GetErrorY(i);
+		y.push_back(y1[i]*y2[i]);
+		ye.push_back(fabs(y1[i]*y2[i])*sqrt(y1e*y1e/y1[i]/y1[i] + y2e*y2e/y2[i]/y2[i]));
+	}
+
+	TGraphErrors g(x.size(), &x[0], &y[0], &xe[0], &ye[0]);
+
+	return g;
+}
+
+
+//------------------------------------------------------------------------------
+const TGraphErrors operator/(const TGraphErrors &g1, const TGraphErrors &g2) {
+
+	return (g1 * (1.0/g2));
+}
+
+
+//------------------------------------------------------------------------------
+const TGraphErrors operator-(const TGraphErrors &g, const TF1 &f) {
+
+	const int n= g.GetN();
+	double *gx = g.GetX();
+	double *gy = g.GetY();
+	vector<double> x;
+	vector<double> xe;
+	vector<double> y;
+	vector<double> ye;
+
+	for(int i=0; i<n; i++) {
+		x.push_back(gx[i]);
+		xe.push_back(0);
+		double gye = g.GetErrorY(i);
+		y.push_back(gy[i] - f.Eval(gx[i]));
+		ye.push_back(gye);
+	}
+
+	return TGraphErrors(x.size(), &x[0], &y[0], &xe[0], &ye[0]);
+}
+
+
+//------------------------------------------------------------------------------
+const TGraphErrors GraphAbs(const TGraphErrors &g1) {
+
+	const int n= g1.GetN();
+	double *x1 = g1.GetX();
+	double *y1 = g1.GetY();
+	vector<double> x;
+	vector<double> xe;
+	vector<double> y;
+	vector<double> ye;
+
+	for(int i=0; i<n; i++) {
+		x.push_back(x1[i]);
+		xe.push_back(0);
+		double y1e = g1.GetErrorY(i);
+		y.push_back(fabs(y1[i]));
+		ye.push_back(fabs(y1e));
+	}
+
+	TGraphErrors g(x.size(), &x[0], &y[0], &xe[0], &ye[0]);
+
+	return g;
+}
+
+
+//------------------------------------------------------------------------------
+const TGraphErrors GraphPow(const TGraphErrors &g1, double c) {
+
+	const int n= g1.GetN();
+	double *x1 = g1.GetX();
+	double *y1 = g1.GetY();
+	vector<double> x;
+	vector<double> xe;
+	vector<double> y;
+	vector<double> ye;
+
+	for(int i=0; i<n; i++) {
+		x.push_back(x1[i]);
+		xe.push_back(0);
+		double y1e = g1.GetErrorY(i);
+		y.push_back(pow(y1[i],c));
+		ye.push_back(y1e*c*pow(y1[i],c-1));
+	}
+
+	TGraphErrors g(x.size(), &x[0], &y[0], &xe[0], &ye[0]);
+
+	return g;
+}
+
+
+//------------------------------------------------------------------------------
+const TGraphErrors GraphSqrt(const TGraphErrors &g1) {
+
+	return GraphPow(g1, 0.5);
+}
+
+
 //------------------------------------------------------------------------------
 const TGraphErrors GraphFrom(const TH1D *h) {
 
