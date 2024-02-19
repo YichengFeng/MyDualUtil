@@ -808,6 +808,33 @@ const TGraphErrors ResHalfToFullK2(const TGraphErrors &g) {
 }
 
 //------------------------------------------------------------------------------
+const TGraphErrors GraphBarlowDiff(const TGraphErrors &g1, const TGraphErrors &g2) {
+
+	const int n= g1.GetN();
+	double *x1 = g1.GetX();
+	double *y1 = g1.GetY();
+	double *x2 = g2.GetX();
+	double *y2 = g2.GetY();
+	vector<double> x;
+	vector<double> xe;
+	vector<double> y;
+	vector<double> ye;
+
+	for(int i=0; i<n; i++) {
+		x.push_back(x1[i]);
+		xe.push_back(0);
+		double y1e = g1.GetErrorY(i);
+		double y2e = g2.GetErrorY(i);
+		y.push_back(y1[i] - y2[i]);
+		ye.push_back(sqrt(fabs(y1e*y1e - y2e*y2e)));
+	}
+
+	TGraphErrors g(x.size(), &x[0], &y[0], &xe[0], &ye[0]);
+
+	return g;
+}
+
+//------------------------------------------------------------------------------
 } // namespace
 
 #endif

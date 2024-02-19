@@ -103,6 +103,10 @@ public:
 		Reset();
 		SetMode(mode);
 		Def = def;
+		if(Def.GetN()>=2) {
+			//Width = 0.1*fabs(def.Graph.GetX()[0] - def.Graph.GetX()[1]);
+			Width = 0.1*fabs(def.GetPoint(0).Px.GetValu() - def.GetPoint(1).Px.GetValu());
+		}
 	}
 	MySystGraph(const MySystGraph &sg1) {
 		//Reset();
@@ -456,7 +460,8 @@ public:
 				bw = bw<tmpbw?bw:tmpbw;
 			}
 		}
-		TLegend *lTmp = new TLegend(0.30,0.65,0.95,0.88);
+		double ldy = (Var.size()+1)/2*0.04;
+		TLegend *lTmp = new TLegend(0.20,0.88-ldy,0.95,0.88);
 		lTmp->SetFillStyle(0);
 		lTmp->SetBorderSize(0);
 		lTmp->SetNColumns(2);
@@ -495,6 +500,10 @@ public:
 		double yh = TMath::MaxElement(n, gStat.GetY());
 		double xw = xh - xl;
 		double yw = yh - yl;
+		if(n==1) {
+			xw = 10;
+			yw = 40*gStat.GetEY()[0];
+		}
 		xl = xl - 0.05*xw;
 		xh = xh + 0.05*xw;
 		yl = yl - 0.05*yw;
@@ -542,6 +551,57 @@ public:
 			sg.SetVar(idx, pg);
 		}
 		return sg;
+	}
+
+	void Print() {
+		if(!IsUpdated) Calc();
+		TString header = Form("x-value\t\ty-value\t\ty-error\t\t");
+		int n = Def.GetN();
+		vector<TString> number(n);
+		for(int i=0; i<n; i++) {
+			number[i] = Form("%f\t%f\t%f\t", Def.GetPoint(i).Px.GetValu(), Def.GetPoint(i).Py.GetValu(), Def.GetPoint(i).Py.GetUnce());
+		}
+		double sx[n];
+		double sy[n];
+		double syl[n];
+		double syh[n];
+		for(int i=0; i<n; i++) {
+			sx[i] = Width;
+			sy[i] = 0;
+			syl[i] = 0;
+			syh[i] = 0;
+		}
+		for(auto it=Var.begin(); it!=Var.end(); it++) {
+			const int &idx = it->first;
+			MyPackGraph &pg = it->second;
+			if(!pg.g.GetIsUpdated()) pg.g.Calc();
+			if(!pg.g.CheckSize(n)) return;
+			header = header + pg.s + "\t";
+			if(pg.s.Length()<8) header = header + "\t";
+			for(int i=0; i<n; i++) {
+				int mm = Mode==0?pg.m:Mode;
+				double w = pg.w;
+				double d = pg.g.GetPoint(i).Py.GetValu() - Def.GetPoint(i).Py.GetValu();
+				double dd = d*d;
+				double ee = fabs(pow(pg.g.GetPoint(i).Py.GetUnce(),2.0) - pow(Def.GetPoint(i).Py.GetUnce(),2.0));
+				double ss = mm==2?(dd-ee):dd;
+				if(ss<0) ss = 0;
+				sy[i] += w*ss;
+				if(d<0) syl[i] += w*ss;
+				if(d>0) syh[i] += w*ss;
+				int sign = d<0?-1:1;
+				number[i] = number[i] + Form("%f\t", sign*sqrt(fabs(w*ss)));
+			}
+		}
+		header = header + Form("total");
+		std::cout << header << std::endl;
+		for(int i=0; i<n; i++) {
+			sy[i] = sqrt(sy[i]);
+			syl[i] = sqrt(syl[i]);
+			syh[i] = sqrt(syh[i]);
+			number[i] = number[i] + Form("+%f-%f", syl[i], syh[i]);
+			std::cout << number[i] << std::endl;
+		}
 	}
 
 	void Write(TFile *f, TString name) const {
