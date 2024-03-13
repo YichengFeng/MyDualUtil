@@ -165,6 +165,9 @@ public:
 		return VidNow;
 	}
 
+	bool CheckVar(int idx) const {
+		return (Var.count(idx)!=0);
+	}
 	void AddVar(int idx, const MyPackGraph &pg) {
 		if(Var.count(idx)==0) {
 			Var.insert({idx, pg});
@@ -192,6 +195,14 @@ public:
 		} else {
 			//Var[idx] = pg;
 			ChgVar(idx, pg);
+		}
+		IsUpdated = false;
+	}
+	void EraseVar(int idx) {
+		if(Var.count(idx)==0) {
+			//std::cout << "MySystGraph::ChgVar() index " << idx << " does not exist!" << std::endl;
+		} else {
+			Var.erase(idx);
 		}
 		IsUpdated = false;
 	}
@@ -269,7 +280,7 @@ public:
 		double val, err, sys;
 		int n10, np;
 		//if(s_n10 < e_n10) {
-		if(gSyst.GetEY()[i] < gStat.GetEY()[i]) {
+		if(gSyst.GetEY()[i] < gStat.GetEY()[i] && gSyst.GetEY()[i] != 0) {
 			val = s_val;
 			err = e_err * pow(10.0, 1.0*(e_n10-s_n10));
 			sys = s_err;
@@ -330,7 +341,7 @@ public:
 		double val, err, syl, syh;
 		int n10, np;
 		//if(sl_n10 < e_n10 && sl_n10 < sh_n10) {
-		if(gAsym.GetEYlow()[i] < gStat.GetEY()[i] && gAsym.GetEYlow()[i] < gAsym.GetEYhigh()[i]) {
+		if(gAsym.GetEYlow()[i] < gStat.GetEY()[i] && (gAsym.GetEYlow()[i] < gAsym.GetEYhigh()[i] || gAsym.GetEYhigh()[i] == 0) && gAsym.GetEYlow()[i] > 0) {
 			val = sl_val;
 			err = e_err * pow(10.0, 1.0*(e_n10-sl_n10));
 			syl = sl_err;
@@ -338,7 +349,7 @@ public:
 			n10 = sl_n10;
 			np = sl_np;
 		//} else if(sh_n10 < e_n10 && sh_n10 < sl_n10) {
-		} else if(gAsym.GetEYhigh()[i] < gStat.GetEY()[i] && gAsym.GetEYhigh()[i] < gAsym.GetEYlow()[i]) {
+		} else if(gAsym.GetEYhigh()[i] < gStat.GetEY()[i] && (gAsym.GetEYhigh()[i] < gAsym.GetEYlow()[i] || gAsym.GetEYlow()[i] == 0) && gAsym.GetEYhigh()[i] > 0) {
 			val = sh_val;
 			err = e_err * pow(10.0, 1.0*(e_n10-sh_n10));
 			syl = sl_err * pow(10.0, 1.0*(sl_n10-sh_n10));
@@ -418,6 +429,13 @@ public:
 		gStat.SetLineColor(color);
 	}
 
+	void SetXaxisRange(double xl, double xh) {
+		if(!IsUpdated) Calc();
+		gSyst.GetXaxis()->SetLimits(xl, xh);
+		gAsym.GetXaxis()->SetLimits(xl, xh);
+		gStat.GetXaxis()->SetLimits(xl, xh);
+	}
+
 	void DrawStat(TString opt = "") {
 		if(!IsUpdated) Calc();
 		gStat.Draw("PL"+opt+" same");
@@ -429,10 +447,22 @@ public:
 		gStat.Draw("PL"+opt+" same");
 	}
 
+	void DrawSyst(TString optstat, TString optsyst) {
+		if(!IsUpdated) Calc();
+		gSyst.Draw(optstat);
+		gStat.Draw(optsyst);
+	}
+
 	void DrawAsym(TString opt = "") {
 		if(!IsUpdated) Calc();
 		gAsym.Draw("P5"+opt+" same");
 		gStat.Draw("PL"+opt+" same");
+	}
+
+	void DrawAsym(TString optstat, TString optsyst) {
+		if(!IsUpdated) Calc();
+		gAsym.Draw(optstat);
+		gStat.Draw(optsyst);
 	}
 
 	void MakePlot(TString name, TH2D* hFrame, TString StrPath="systplot") {
@@ -599,7 +629,7 @@ public:
 			sy[i] = sqrt(sy[i]);
 			syl[i] = sqrt(syl[i]);
 			syh[i] = sqrt(syh[i]);
-			number[i] = number[i] + Form("+%f-%f", syl[i], syh[i]);
+			number[i] = number[i] + Form("-%f+%f", syl[i], syh[i]);
 			std::cout << number[i] << std::endl;
 		}
 	}

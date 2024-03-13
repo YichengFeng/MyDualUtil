@@ -233,7 +233,7 @@ public:
 	// this code will take care of that: #bin * -IdxMax
 	const MyDualGraph AveBin(std::vector<int> range) const {
 		std::sort( range.begin(), range.end() );
-		range.erase( unique( range.begin(), range.end() ), range.end() );
+		range.erase( std::unique( range.begin(), range.end() ), range.end() );
 		int n = (int)range.size();
 		if(n<=0) {
 			std::cout << "MyDualGraph::AveBin() invalid range!" << std::endl;
