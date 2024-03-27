@@ -583,13 +583,36 @@ public:
 		return sg;
 	}
 
-	void Print() {
+	static TString Sn(int n) {
+		TString s;
+		for(int i=0; i<n; i++) s = s + ' ';
+		return s;
+	}
+
+	static TString Sn(TString ss, int n=16) {
+		TString s;
+		for(int i=0; i<n; i++) {
+			if(i<ss.Length()) {
+				s = s + ss[i];
+			} else {
+				s = s + ' ';
+			}
+		}
+		return s;
+	}
+
+	static TString Sn(double a, int n=16) {
+		TString ss = Form("%f", a);
+		return Sn(ss, n);
+	}
+
+	void Print(int width = 176) {
 		if(!IsUpdated) Calc();
-		TString header = Form("x-value\t\ty-value\t\ty-error\t\t");
+		TString header = Sn("x-value") + Sn("y-value") + Sn("y-error");
 		int n = Def.GetN();
 		vector<TString> number(n);
 		for(int i=0; i<n; i++) {
-			number[i] = Form("%f\t%f\t%f\t", Def.GetPoint(i).Px.GetValu(), Def.GetPoint(i).Py.GetValu(), Def.GetPoint(i).Py.GetUnce());
+			number[i] = Sn(Def.GetPoint(i).Px.GetValu()) + Sn(Def.GetPoint(i).Py.GetValu()) + Sn(Def.GetPoint(i).Py.GetUnce());
 		}
 		double sx[n];
 		double sy[n];
@@ -606,8 +629,7 @@ public:
 			MyPackGraph &pg = it->second;
 			if(!pg.g.GetIsUpdated()) pg.g.Calc();
 			if(!pg.g.CheckSize(n)) return;
-			header = header + pg.s + "\t";
-			if(pg.s.Length()<8) header = header + "\t";
+			header = header + Sn(pg.s);
 			for(int i=0; i<n; i++) {
 				int mm = Mode==0?pg.m:Mode;
 				double w = pg.w;
@@ -620,17 +642,26 @@ public:
 				if(d<0) syl[i] += w*ss;
 				if(d>0) syh[i] += w*ss;
 				int sign = d<0?-1:1;
-				number[i] = number[i] + Form("%f\t", sign*sqrt(fabs(w*ss)));
+				number[i] = number[i] + Sn(sign*sqrt(fabs(w*ss)));
 			}
 		}
-		header = header + Form("total");
-		std::cout << header << std::endl;
+		header = header + Sn("total", 32);
 		for(int i=0; i<n; i++) {
 			sy[i] = sqrt(sy[i]);
 			syl[i] = sqrt(syl[i]);
 			syh[i] = sqrt(syh[i]);
-			number[i] = number[i] + Form("-%f+%f", syl[i], syh[i]);
-			std::cout << number[i] << std::endl;
+			number[i] = number[i] + Sn(Form("-%f+%f", syl[i], syh[i]), 32);
+		}
+		int nLine = header.Length()/width + (header.Length()%width==0?0:1);
+		for(int iLine=0; iLine<nLine; iLine++) {
+			TString tmph;
+			for(int j=0; j<width && iLine*width+j<header.Length(); j++) tmph = tmph + header[iLine*width+j];
+			std::cout << tmph << std::endl;
+			for(int i=0; i<n; i++) {
+				TString tmpn;
+				for(int j=0; j<width && iLine*width+j<number[i].Length(); j++) tmpn = tmpn + number[i][iLine*width+j];
+				std::cout << tmpn << std::endl;
+			}
 		}
 	}
 
