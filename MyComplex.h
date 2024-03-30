@@ -178,4 +178,70 @@ const MyComplex<MySystGraph> operator/(const MyComplex<MyDualGraph> &c, const My
 }
 
 
+const MyComplex<MySystGraph> operator+(const MyComplex<MySystGraph> &t1, const MyComplex<MyDualMultiv> &c) {
+	return MyComplex<MySystGraph>(t1.GetRe()+c.GetRe(), t1.GetIm()+c.GetIm());
+}
+
+const MyComplex<MySystGraph> operator+(const MyComplex<MyDualMultiv> &c, const MyComplex<MySystGraph> &t1) {
+	return (t1 + c);
+}
+
+const MyComplex<MySystGraph> operator-(const MyComplex<MySystGraph> &t1, const MyComplex<MyDualMultiv> &c) {
+	return (t1 + (-1.0*c));
+}
+
+const MyComplex<MySystGraph> operator-(const MyComplex<MyDualMultiv> &c, const MyComplex<MySystGraph> &t1) {
+	return ((-1.0*t1) + c);
+}
+
+const MyComplex<MySystGraph> operator*(const MyComplex<MySystGraph> &t1, const MyComplex<MyDualMultiv> &c) {
+	return MyComplex<MySystGraph>(t1.GetRe()*c.GetRe()-t1.GetIm()*c.GetIm(), t1.GetRe()*c.GetIm()+t1.GetIm()*c.GetRe());
+}
+
+const MyComplex<MySystGraph> operator*(const MyComplex<MyDualMultiv> &c, const MyComplex<MySystGraph> &t1) {
+	return (t1 * c);
+}
+
+const MyComplex<MySystGraph> operator/(const MyComplex<MySystGraph> &t1, const MyComplex<MyDualMultiv> &c) {
+	return (t1 * (1.0/c));
+}
+
+const MyComplex<MySystGraph> operator/(const MyComplex<MyDualMultiv> &c, const MyComplex<MySystGraph> &t1) {
+	return ((1.0/t1) * c);
+}
+
+
+const MyComplex<MyDualGraph> operator+(const MyComplex<MyDualGraph> &t1, const MyComplex<MyDualMultiv> &c) {
+	return MyComplex<MyDualGraph>(t1.GetRe()+c.GetRe(), t1.GetIm()+c.GetIm());
+}
+
+const MyComplex<MyDualGraph> operator+(const MyComplex<MyDualMultiv> &c, const MyComplex<MyDualGraph> &t1) {
+	return (t1 + c);
+}
+
+const MyComplex<MyDualGraph> operator-(const MyComplex<MyDualGraph> &t1, const MyComplex<MyDualMultiv> &c) {
+	return (t1 + (-1.0*c));
+}
+
+const MyComplex<MyDualGraph> operator-(const MyComplex<MyDualMultiv> &c, const MyComplex<MyDualGraph> &t1) {
+	return ((-1.0*t1) + c);
+}
+
+const MyComplex<MyDualGraph> operator*(const MyComplex<MyDualGraph> &t1, const MyComplex<MyDualMultiv> &c) {
+	return MyComplex<MyDualGraph>(t1.GetRe()*c.GetRe()-t1.GetIm()*c.GetIm(), t1.GetRe()*c.GetIm()+t1.GetIm()*c.GetRe());
+}
+
+const MyComplex<MyDualGraph> operator*(const MyComplex<MyDualMultiv> &c, const MyComplex<MyDualGraph> &t1) {
+	return (t1 * c);
+}
+
+const MyComplex<MyDualGraph> operator/(const MyComplex<MyDualGraph> &t1, const MyComplex<MyDualMultiv> &c) {
+	return (t1 * (1.0/c));
+}
+
+const MyComplex<MyDualGraph> operator/(const MyComplex<MyDualMultiv> &c, const MyComplex<MyDualGraph> &t1) {
+	return ((1.0/t1) * c);
+}
+
+
 #endif
