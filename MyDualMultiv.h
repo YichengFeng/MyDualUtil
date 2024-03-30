@@ -22,6 +22,17 @@ private:
 	std::map<int,double> Dual;
 
 public:
+	static int MidNow;
+	static const int MidMax = INT_MAX;
+	static int AutoNewMid() { // MidNow range 1 ~ MidMax-1
+		if(MidNow>=MidMax-1) {
+			std::cout << "MyDualMultiv::MidNow out of range! " << MidNow << "/" << MidMax-1 << std::endl;
+		} else {
+			MidNow ++;
+		}
+		return MidNow;
+	}
+	
 	void Reset() {
 		Valu = 0;
 		Dual.clear();
@@ -33,9 +44,17 @@ public:
 	MyDualMultiv(double valu) {
 		Valu = valu;
 	}
+	MyDualMultiv(double valu, double dual) {
+		Valu = valu;
+		Dual.insert({AutoNewMid(), dual});
+	}
 	MyDualMultiv(int indx, const MyDualNumber &dn) {
 		Valu = dn.GetValu();
 		Dual.insert({indx, dn.GetDual()});
+	}
+	MyDualMultiv(const MyDualNumber &dn) {
+		Valu = dn.GetValu();
+		Dual.insert({AutoNewMid(), dn.GetDual()});
 	}
 	MyDualMultiv(const MyDualMultiv &dm) {
 		Valu = dm.Valu;
@@ -67,8 +86,14 @@ public:
 			Dual[indx] = dual;
 		}
 	}
+	void SetDual(double dual) {
+		SetDual(AutoNewMid(), dual);
+	}
 	void SetDual(int indx, const MyDualNumber &dn) {
 		SetDual(indx, dn.GetDual());
+	}
+	void SetDual(const MyDualNumber &dn) {
+		SetDual(AutoNewMid(), dn);
 	}
 
 	const MyDualNumber GetPart(int indx) const {
@@ -96,6 +121,9 @@ public:
 		return dn.StrLatex(symboltype);
 	}
 };
+
+
+int MyDualMultiv::MidNow = 0;
 
 
 // math
@@ -329,6 +357,51 @@ const MyDualMultiv atan(const MyDualMultiv &dm1) {
 		dm2.SetDual(indx, atan(dn1));
 	}
 	return dm2;
+}
+
+const MyDualMultiv atan2(const MyDualMultiv &dm1, const MyDualMultiv &dm2) {
+	MyDualMultiv dm3(atan2(dm1.GetValu(), dm2.GetValu()));
+	std::vector<int> list1 = dm1.GetList();
+	std::vector<int> list2 = dm2.GetList();
+	int i = 0;
+	int j = 0;
+	while(i<(int)list1.size() && j<(int)list2.size()) {
+		if(list1[i] < list2[j]) {
+			int indx = list1[i];
+			MyDualNumber dn1 = dm1.GetPart(indx);
+			MyDualNumber dn2 = MyDualNumber(dm2.GetValu());
+			dm3.SetDual(indx, atan2(dn1, dn2));
+			i++;
+		} else if(list1[i] > list2[j]) {
+			int indx = list2[j];
+			MyDualNumber dn1 = MyDualNumber(dm1.GetValu());
+			MyDualNumber dn2 = dm2.GetPart(indx);
+			dm3.SetDual(indx, atan2(dn1, dn2));
+			j++;
+		} else {
+			int indx = list1[i]; // = list2[j];
+			MyDualNumber dn1 = dm1.GetPart(indx);
+			MyDualNumber dn2 = dm2.GetPart(indx);
+			dm3.SetDual(indx, atan2(dn1, dn2));
+			i++;
+			j++;
+		}
+	}
+	while(i<(int)list1.size()) {
+		int indx = list1[i];
+		MyDualNumber dn1 = dm1.GetPart(indx);
+		MyDualNumber dn2 = MyDualNumber(dm2.GetValu());
+		dm3.SetDual(indx, atan2(dn1, dn2));
+		i++;
+	}
+	while(j<(int)list2.size()) {
+		int indx = list2[j];
+		MyDualNumber dn1 = MyDualNumber(dm1.GetValu());
+		MyDualNumber dn2 = dm2.GetPart(indx);
+		dm3.SetDual(indx, atan2(dn1, dn2));
+		j++;
+	}
+	return dm3;
 }
 
 

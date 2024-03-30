@@ -674,6 +674,7 @@ public:
 int MySystGraph::VidNow = 0;
 
 
+// math
 const MySystGraph operator+(const MySystGraph &sg1, double c) {
 	MySystGraph sg2(sg1);
 	sg2.SetDef(sg1.GetDef() + c);
@@ -732,6 +733,127 @@ const MySystGraph operator/(double c, const MySystGraph &sg1) {
 	}
 	return sg2;
 }
+
+
+const MySystGraph operator+(const MySystGraph &sg1, const MyDualMultiv &c) {
+	MySystGraph sg2(sg1);
+	sg2.SetDef(sg1.GetDef() + c);
+	std::vector<int> list = sg1.GetList();
+	for(int i=0; i<(int)list.size(); i++) {
+		int idx = list[i];
+		MyPackGraph pg = sg1.GetVar(idx);
+		pg.g = (pg.g + c);
+		sg2.SetVar(idx, pg);
+	}
+	return sg2;
+}
+
+const MySystGraph operator+(const MyDualMultiv &c, const MySystGraph &sg1) {
+	return (sg1 + c);
+}
+
+const MySystGraph operator*(const MySystGraph &sg1, const MyDualMultiv &c) {
+	MySystGraph sg2(sg1);
+	sg2.SetDef(sg1.GetDef() * c);
+	std::vector<int> list = sg1.GetList();
+	for(int i=0; i<(int)list.size(); i++) {
+		int idx = list[i];
+		MyPackGraph pg = sg1.GetVar(idx);
+		pg.g = (pg.g * c);
+		sg2.SetVar(idx, pg);
+	}
+	return sg2;
+}
+
+const MySystGraph operator*(const MyDualMultiv &c, const MySystGraph &sg1) {
+	return (sg1 * c);
+}
+
+const MySystGraph operator-(const MySystGraph &sg1, const MyDualMultiv &c) {
+	return (sg1 + (-c));
+}
+
+const MySystGraph operator-(const MyDualMultiv &c, const MySystGraph &sg1) {
+	return (-1.0*sg1 + c);
+}
+
+const MySystGraph operator/(const MySystGraph &sg1, const MyDualMultiv &c) {
+	return (sg1 * (1.0/c));
+}
+
+const MySystGraph operator/(const MyDualMultiv &c, const MySystGraph &sg1) {
+	MySystGraph sg2(sg1);
+	sg2.SetDef(c / sg1.GetDef());
+	std::vector<int> list = sg1.GetList();
+	for(int i=0; i<(int)list.size(); i++) {
+		int idx = list[i];
+		MyPackGraph pg = sg1.GetVar(idx);
+		pg.g = (c / pg.g);
+		sg2.SetVar(idx, pg);
+	}
+	return sg2;
+}
+
+
+const MySystGraph operator+(const MySystGraph &sg1, const MyDualGraph &c) {
+	MySystGraph sg2(sg1);
+	sg2.SetDef(sg1.GetDef() + c);
+	std::vector<int> list = sg1.GetList();
+	for(int i=0; i<(int)list.size(); i++) {
+		int idx = list[i];
+		MyPackGraph pg = sg1.GetVar(idx);
+		pg.g = (pg.g + c);
+		sg2.SetVar(idx, pg);
+	}
+	return sg2;
+}
+
+const MySystGraph operator+(const MyDualGraph &c, const MySystGraph &sg1) {
+	return (sg1 + c);
+}
+
+const MySystGraph operator*(const MySystGraph &sg1, const MyDualGraph &c) {
+	MySystGraph sg2(sg1);
+	sg2.SetDef(sg1.GetDef() * c);
+	std::vector<int> list = sg1.GetList();
+	for(int i=0; i<(int)list.size(); i++) {
+		int idx = list[i];
+		MyPackGraph pg = sg1.GetVar(idx);
+		pg.g = (pg.g * c);
+		sg2.SetVar(idx, pg);
+	}
+	return sg2;
+}
+
+const MySystGraph operator*(const MyDualGraph &c, const MySystGraph &sg1) {
+	return (sg1 * c);
+}
+
+const MySystGraph operator-(const MySystGraph &sg1, const MyDualGraph &c) {
+	return (sg1 + (-c));
+}
+
+const MySystGraph operator-(const MyDualGraph &c, const MySystGraph &sg1) {
+	return (-1.0*sg1 + c);
+}
+
+const MySystGraph operator/(const MySystGraph &sg1, const MyDualGraph &c) {
+	return (sg1 * (1.0/c));
+}
+
+const MySystGraph operator/(const MyDualGraph &c, const MySystGraph &sg1) {
+	MySystGraph sg2(sg1);
+	sg2.SetDef(c / sg1.GetDef());
+	std::vector<int> list = sg1.GetList();
+	for(int i=0; i<(int)list.size(); i++) {
+		int idx = list[i];
+		MyPackGraph pg = sg1.GetVar(idx);
+		pg.g = (c / pg.g);
+		sg2.SetVar(idx, pg);
+	}
+	return sg2;
+}
+
 
 const MySystGraph operator+(const MySystGraph &sg1) {
 	return sg1;
@@ -949,6 +1071,53 @@ const MySystGraph atan(const MySystGraph &sg1) {
 		sg2.SetVar(idx, pg);
 	}
 	return sg2;
+}
+
+const MySystGraph atan2(const MySystGraph &sg1, const MySystGraph &sg2) {
+	if(sg1.GetMode() != sg2.GetMode()) std::cout << "MySystGraph: Mode not match!" << std::endl;
+	MySystGraph sg3(sg1);
+	sg3.SetDef(atan2(sg1.GetDef(), sg2.GetDef()));
+	std::vector<int> list1 = sg1.GetList();
+	std::vector<int> list2 = sg2.GetList();
+	int i = 0;
+	int j = 0;
+	while(i<(int)list1.size() && j<(int)list2.size()) {
+		if(list1[i] < list2[j]) {
+			int idx = list1[i];
+			MyPackGraph pg = sg1.GetVar(idx);
+			pg.g = atan2(pg.g, sg2.GetDef());
+			sg3.SetVar(idx, pg);
+			i++;
+		} else if(list1[i] > list2[j]) {
+			int idx = list2[j];
+			MyPackGraph pg = sg2.GetVar(idx);
+			pg.g = atan2(sg1.GetDef(), pg.g);
+			sg3.SetVar(idx, pg);
+			j++;
+		} else {
+			int idx = list1[i]; // = list2[j];
+			MyPackGraph pg = sg1.GetVar(idx);
+			pg.g = atan2(pg.g, sg2.GetVar(idx).g);
+			sg3.SetVar(idx, pg);
+			i++;
+			j++;
+		}
+	}
+	while(i<(int)list1.size()) {
+		int idx = list1[i];
+		MyPackGraph pg = sg1.GetVar(idx);
+		pg.g = atan2(pg.g, sg2.GetDef());
+		sg3.SetVar(idx, pg);
+		i++;
+	}
+	while(j<(int)list2.size()) {
+		int idx = list2[j];
+		MyPackGraph pg = sg2.GetVar(idx);
+		pg.g = atan2(sg1.GetDef(), pg.g);
+		sg3.SetVar(idx, pg);
+		j++;
+	}
+	return sg3;
 }
 
 

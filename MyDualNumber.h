@@ -214,5 +214,11 @@ const MyDualNumber atan(const MyDualNumber &dn1) {
 	return MyDualNumber(atan(dn1.GetValu()), dn1.GetDual()/(1.0+dn1.GetValu()*dn1.GetValu()));
 }
 
+const MyDualNumber atan2(const MyDualNumber &dn1, const MyDualNumber &dn2) {
+	double valu = atan2(dn1.GetValu(), dn2.GetValu());
+	double dual = atan(dn1 / dn2).GetDual();
+	return MyDualNumber(valu, dual);
+}
+
 
 #endif

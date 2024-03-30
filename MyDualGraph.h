@@ -52,9 +52,6 @@ private:
 public:
 	TGraphErrors Graph;
 
-	static int IdxNow; // the latest index
-	static const int IdxMax = 1000000; // maximal index
-
 	bool GetIsUpdated() const {
 		return IsUpdated;
 	}
@@ -95,6 +92,19 @@ public:
 	void SetDual(int indx, const TH1 &h) {
 		SetDual(indx, h, false, false, false);
 	}
+	void SetDual(const TH1 &h, bool xreset, bool xerror, bool yreset) {
+		int n = h.GetXaxis()->GetNbins();
+		if(!CheckSize(n)) return;
+		for(int i=0; i<n; i++) {
+			if(xreset) Points[i].Px = MyDualNumber(h.GetXaxis()->GetBinCenter(i+1), xerror?(h.GetXaxis()->GetBinWidth(i+1)*0.5):0);
+			if(yreset) Points[i].Py.SetValu(h.GetBinContent(i+1));
+			Points[i].Py.SetDual(h.GetBinError(i+1));
+		}
+		IsUpdated = false;
+	}
+	void SetDual(const TH1 &h) {
+		SetDual(h, false, false, false);
+	}
 	void SetDual(int indx, const TGraphErrors &g, bool xreset, bool xerror, bool yreset) {
 		int n = g.GetN();
 		if(!CheckSize(n)) return;
@@ -108,6 +118,19 @@ public:
 	void SetDual(int indx, const TGraphErrors &g) {
 		SetDual(indx, g, false, false, false);
 	}
+	void SetDual(const TGraphErrors &g, bool xreset, bool xerror, bool yreset) {
+		int n = g.GetN();
+		if(!CheckSize(n)) return;
+		for(int i=0; i<n; i++) {
+			if(xreset) Points[i].Px = MyDualNumber(g.GetX()[i], xerror?(g.GetEX()[i]):0);
+			if(yreset) Points[i].Py.SetValu(g.GetY()[i]);
+			Points[i].Py.SetDual(g.GetEY()[i]);
+		}
+		IsUpdated = false;
+	}
+	void SetDual(const TGraphErrors &g) {
+		SetDual(g, false, false, false);
+	}
 
 	void Reset(int n=0) {
 		Points.clear();
@@ -118,15 +141,6 @@ public:
 		IsUpdated = false;
 	}
 
-	static int AutoNewIdx() { // IdxNow range 1 ~ IdxMax-1
-		if(IdxNow>=IdxMax-1) {
-			std::cout << "MyDualGraph::IdxNow out of range! " << IdxNow << "/" << IdxMax-1 << std::endl;
-		} else {
-			IdxNow ++;
-		}
-		return IdxNow;
-	}
-
 	MyDualGraph() {
 		Reset(0);
 	}
@@ -135,13 +149,11 @@ public:
 	}
 	MyDualGraph(const TH1 &h, bool xerror=false) {
 		Reset(h.GetXaxis()->GetNbins());
-		AutoNewIdx();
-		SetDual(IdxNow, h, true, xerror, true);
+		SetDual(h, true, xerror, true);
 	}
 	MyDualGraph(const TGraphErrors &g, bool xerror=false) {
 		Reset(g.GetN());
-		AutoNewIdx();
-		SetDual(IdxNow, g, true, xerror, true);
+		SetDual(g, true, xerror, true);
 	}
 	MyDualGraph(int indx, const TH1 &h, bool xerror=false) {
 		Reset(h.GetXaxis()->GetNbins());
@@ -162,20 +174,6 @@ public:
 	}
 	~MyDualGraph() {
 		Reset(0);
-	}
-
-	int GetIdxOne() const {
-		if(Points.size()<=0) {
-			std::cout << "MyDualGraph::GetIdxOne() empty Points!" << std::endl;
-			return 0; // 0 is not used as an index
-		}
-		std::vector<int> list = Points[0].Py.GetList();
-		if(list.size()!=1) {
-			std::cout << "MyDualGraph::GetIdxOne() not the single index!" << std::endl;
-			return 0;
-		} else {
-			return list[0];
-		}
 	}
 
 	int GetN() const {
@@ -230,7 +228,6 @@ public:
 
 	// merge
 	// must use different bins for merge, so they should be independent
-	// this code will take care of that: #bin * -IdxMax
 	const MyDualGraph AveBin(std::vector<int> range) const {
 		std::sort( range.begin(), range.end() );
 		range.erase( std::unique( range.begin(), range.end() ), range.end() );
@@ -253,7 +250,7 @@ public:
 			std::vector<int> list = Points[i].Py.GetList();
 			for(int j=0; j<(int)list.size(); j++) {
 				int idx = list[j];
-				dm.SetDual(idx-IdxMax*i, Points[i].Py.GetDual(idx));
+				dm.SetDual(idx, Points[i].Py.GetDual(idx));
 			}
 			avey = k==0?dm:AvePlus(avey, dm);
 		}
@@ -284,9 +281,6 @@ public:
 		f->WriteObjectAny(this, "MyDualGraph", name);
 	}
 };
-
-
-int MyDualGraph::IdxNow = 0;
 
 
 // math
@@ -339,6 +333,58 @@ const MyDualGraph operator/(double c, const MyDualGraph &dg1) {
 	}
 	return dg2;
 }
+
+
+const MyDualGraph operator+(const MyDualGraph &dg1, const MyDualMultiv &c) {
+	int n = dg1.GetN();
+	MyDualGraph dg2(n);
+	for(int i=0; i<n; i++) {
+		MyDualPoint dp = dg1.GetPoint(i);
+		dg2.SetPoint(i, MyDualPoint(dp.Px, (dp.Py + c)));
+	}
+	return dg2;
+}
+
+const MyDualGraph operator+(const MyDualMultiv &c, const MyDualGraph &dg1) {
+	return (dg1 + c);
+}
+
+const MyDualGraph operator*(const MyDualGraph &dg1, const MyDualMultiv &c) {
+	int n = dg1.GetN();
+	MyDualGraph dg2(n);
+	for(int i=0; i<n; i++) {
+		MyDualPoint dp = dg1.GetPoint(i);
+		dg2.SetPoint(i, MyDualPoint(dp.Px, (dp.Py * c)));
+	}
+	return dg2;
+}
+
+const MyDualGraph operator*(const MyDualMultiv &c, const MyDualGraph &dg1) {
+	return (dg1 * c);
+}
+
+const MyDualGraph operator-(const MyDualGraph &dg1, const MyDualMultiv &c) {
+	return (dg1 + (-1.0*c));
+}
+
+const MyDualGraph operator-(const MyDualMultiv &c, const MyDualGraph &dg1) {
+	return (-1.0*dg1 + c);
+}
+
+const MyDualGraph operator/(const MyDualGraph &dg1, const MyDualMultiv &c) {
+	return (dg1 * (1.0/c));
+}
+
+const MyDualGraph operator/(const MyDualMultiv &c, const MyDualGraph &dg1) {
+	int n = dg1.GetN();
+	MyDualGraph dg2(n);
+	for(int i=0; i<n; i++) {
+		MyDualPoint dp = dg1.GetPoint(i);
+		dg2.SetPoint(i, MyDualPoint(dp.Px, (c / dp.Py)));
+	}
+	return dg2;
+}
+
 
 const MyDualGraph operator+(const MyDualGraph &dg1) {
 	return dg1;
@@ -462,6 +508,18 @@ const MyDualGraph atan(const MyDualGraph &dg1) {
 		dg2.SetPoint(i, MyDualPoint(dp.Px, atan(dp.Py)));
 	}
 	return dg2;
+}
+
+const MyDualGraph atan2(const MyDualGraph &dg1, const MyDualGraph &dg2) {
+	int n = dg1.GetN();
+	if(!dg2.CheckSize(n)) return MyDualGraph();
+	MyDualGraph dg3(n);
+	for(int i=0; i<n; i++) {
+		MyDualPoint dp1 = dg1.GetPoint(i);
+		MyDualPoint dp2 = dg2.GetPoint(i);
+		dg3.SetPoint(i, MyDualPoint(dp1.Px, atan2(dp1.Py, dp2.Py)));
+	}
+	return dg3;
 }
 
 
