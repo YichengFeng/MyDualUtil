@@ -395,15 +395,39 @@ const MyDualGraph operator-(const MyDualGraph &dg1) {
 }
 
 const MyDualGraph operator+(const MyDualGraph &dg1, const MyDualGraph &dg2) {
-	int n = dg1.GetN();
-	if(!dg2.CheckSize(n)) return MyDualGraph();
-	MyDualGraph dg3(n);
-	for(int i=0; i<n; i++) {
-		MyDualPoint dp1 = dg1.GetPoint(i);
-		MyDualPoint dp2 = dg2.GetPoint(i);
-		dg3.SetPoint(i, MyDualPoint(dp1.Px, (dp1.Py + dp2.Py)));
+	if(dg1.GetN()==0 || dg2.GetN()==0) {
+		std::cout << "MyDualGraph operator: 0 point!" << std::endl;
+		return MyDualGraph();
+	} else if(dg1.GetN()==1) {
+		int n = dg2.GetN();
+		MyDualGraph dg3(n);
+		for(int i=0; i<n; i++) {
+			MyDualPoint dp1 = dg1.GetPoint(0);
+			MyDualPoint dp2 = dg2.GetPoint(i);
+			dg3.SetPoint(i, MyDualPoint(dp2.Px, (dp1.Py + dp2.Py)));
+		}
+		return dg3;
+	} else if(dg2.GetN()==1) {
+		int n = dg1.GetN();
+		MyDualGraph dg3(n);
+		for(int i=0; i<n; i++) {
+			MyDualPoint dp1 = dg1.GetPoint(i);
+			MyDualPoint dp2 = dg2.GetPoint(0);
+			dg3.SetPoint(i, MyDualPoint(dp1.Px, (dp1.Py + dp2.Py)));
+		}
+		return dg3;
+	} else {
+		int n = dg1.GetN();
+		if(!dg2.CheckSize(n)) return MyDualGraph();
+		MyDualGraph dg3(n);
+		for(int i=0; i<n; i++) {
+			MyDualPoint dp1 = dg1.GetPoint(i);
+			MyDualPoint dp2 = dg2.GetPoint(i);
+			dg3.SetPoint(i, MyDualPoint(dp1.Px, (dp1.Py + dp2.Py)));
+		}
+		return dg3;
 	}
-	return dg3;
+	return MyDualGraph();
 }
 
 const MyDualGraph operator-(const MyDualGraph &dg1, const MyDualGraph &dg2) {
@@ -411,15 +435,39 @@ const MyDualGraph operator-(const MyDualGraph &dg1, const MyDualGraph &dg2) {
 }
 
 const MyDualGraph operator*(const MyDualGraph &dg1, const MyDualGraph &dg2) {
-	int n = dg1.GetN();
-	if(!dg2.CheckSize(n)) return MyDualGraph();
-	MyDualGraph dg3(n);
-	for(int i=0; i<n; i++) {
-		MyDualPoint dp1 = dg1.GetPoint(i);
-		MyDualPoint dp2 = dg2.GetPoint(i);
-		dg3.SetPoint(i, MyDualPoint(dp1.Px, (dp1.Py * dp2.Py)));
+	if(dg1.GetN()==0 || dg2.GetN()==0) {
+		std::cout << "MyDualGraph operator: 0 point!" << std::endl;
+		return MyDualGraph();
+	} else if(dg1.GetN()==1) {
+		int n = dg2.GetN();
+		MyDualGraph dg3(n);
+		for(int i=0; i<n; i++) {
+			MyDualPoint dp1 = dg1.GetPoint(0);
+			MyDualPoint dp2 = dg2.GetPoint(i);
+			dg3.SetPoint(i, MyDualPoint(dp2.Px, (dp1.Py * dp2.Py)));
+		}
+		return dg3;
+	} else if(dg2.GetN()==1) {
+		int n = dg1.GetN();
+		MyDualGraph dg3(n);
+		for(int i=0; i<n; i++) {
+			MyDualPoint dp1 = dg1.GetPoint(i);
+			MyDualPoint dp2 = dg2.GetPoint(0);
+			dg3.SetPoint(i, MyDualPoint(dp1.Px, (dp1.Py * dp2.Py)));
+		}
+		return dg3;
+	} else {
+		int n = dg1.GetN();
+		if(!dg2.CheckSize(n)) return MyDualGraph();
+		MyDualGraph dg3(n);
+		for(int i=0; i<n; i++) {
+			MyDualPoint dp1 = dg1.GetPoint(i);
+			MyDualPoint dp2 = dg2.GetPoint(i);
+			dg3.SetPoint(i, MyDualPoint(dp1.Px, (dp1.Py * dp2.Py)));
+		}
+		return dg3;
 	}
-	return dg3;
+	return MyDualGraph();
 }
 
 const MyDualGraph operator/(const MyDualGraph &dg1, const MyDualGraph &dg2) {

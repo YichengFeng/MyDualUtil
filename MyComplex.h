@@ -18,6 +18,10 @@ public:
 		Im = im;
 	}
 
+	MyComplex(T re) {
+		Re = re;
+	}
+
 	~MyComplex() {
 	}
 

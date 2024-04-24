@@ -52,6 +52,16 @@ public:
 			m = 1;
 		}
 	}
+	MyPackGraph(const TGraphErrors &gg, TString ss="", double ww=1.0, int mm=1) {
+		g = MyDualGraph(gg);
+		s = ss;
+		w = ww;
+		if(mm==1 || mm==2) {
+			m = mm;
+		} else {
+			m = 1;
+		}
+	}
 	MyPackGraph(const MyPackGraph &pg) {
 		g = pg.g;
 		s = pg.s;
@@ -106,6 +116,15 @@ public:
 		if(Def.GetN()>=2) {
 			//Width = 0.1*fabs(def.Graph.GetX()[0] - def.Graph.GetX()[1]);
 			Width = 0.1*fabs(def.GetPoint(0).Px.GetValu() - def.GetPoint(1).Px.GetValu());
+		}
+	}
+	MySystGraph(const TGraphErrors &def, int mode=0) {
+		Reset();
+		SetMode(mode);
+		Def = MyDualGraph(def);
+		if(Def.GetN()>=2) {
+			//Width = 0.1*fabs(def.Graph.GetX()[0] - def.Graph.GetX()[1]);
+			Width = 0.1*fabs(Def.GetPoint(0).Px.GetValu() - Def.GetPoint(1).Px.GetValu());
 		}
 	}
 	MySystGraph(const MySystGraph &sg1) {
@@ -490,7 +509,7 @@ public:
 				bw = bw<tmpbw?bw:tmpbw;
 			}
 		}
-		double ldy = (Var.size()+1)/2*0.04;
+		double ldy = (Var.size()+1)/2*0.05;
 		TLegend *lTmp = new TLegend(0.20,0.88-ldy,0.95,0.88);
 		lTmp->SetFillStyle(0);
 		lTmp->SetBorderSize(0);
