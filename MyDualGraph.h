@@ -272,6 +272,39 @@ public:
 		return AveBin(range);
 	}
 
+	// select
+	const MyDualGraph SelectBin(std::vector<int> range) const {
+		std::sort( range.begin(), range.end() );
+		range.erase( std::unique( range.begin(), range.end() ), range.end() );
+		int n = (int)range.size();
+		if(n<=0) {
+			std::cout << "MyDualGraph::SelectBin() invalid range!" << std::endl;
+			return MyDualGraph();
+		}
+		if(!CheckIndex(range[0]) || !CheckIndex(range[n-1])) {
+			std::cout << "MyDualGraph::SelectBin() invalid range!" << std::endl;
+			return MyDualGraph();
+		}
+		std::vector<MyDualPoint> points;
+		for(int k=0; k<n; k++) {
+			int i = range[k];
+			points.push_back(Points[i]);
+		}
+		return MyDualGraph(points);
+	}
+
+	const MyDualGraph SelectBin(int bl, int bh) const {
+		if(!CheckIndex(bl) || !CheckIndex(bh) || bl>bh) {
+			std::cout << "MyDualGraph::SelectBin() invalid range!" << std::endl;
+			return MyDualGraph();
+		}
+		std::vector<int> range;
+		for(int i=bl; i<=bh; i++) {
+			range.push_back(i);
+		}
+		return SelectBin(range);
+	}
+
 	const MyDualGraph MergeUnce() {
 		if(!IsUpdated) Calc();
 		return MyDualGraph(Graph, true);
