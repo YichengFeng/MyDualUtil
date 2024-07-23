@@ -36,7 +36,7 @@ public:
 	MyDualGraph g; // graph
 	TString s;
 	double w; // weight
-	int m; // mode: 1: s^2; 2: s^2-e^2
+	int m; // mode: 1: s^2; 2: s^2-(e^2-e^2); 3: s^2-(e^2+e^2)
 
 	MyPackGraph() {
 		w = 0;
@@ -199,6 +199,28 @@ public:
 		AutoNewVid();
 		AddVar(VidNow, pg);
 	}
+	void AddUnc(int idxl, int idxh, const TGraphErrors &g) { // only for DrawSyst()
+		const int n = Def.GetN();
+		Def.Calc();
+		if(g.GetN() != n) std::cout << "MySystGraph::AddUnc() size does not match!" << std::endl;
+		double tmpyl[n];
+		double tmpyh[n];
+		for(int i=0; i<n; i++) {
+			tmpyl[i] = Def.Graph.GetY()[i] - g.GetEY()[i];
+			tmpyh[i] = Def.Graph.GetY()[i] + g.GetEY()[i];
+		}
+		TGraphErrors gl(n, Def.Graph.GetX(), tmpyl, Def.Graph.GetEX(), Def.Graph.GetEY());
+		TGraphErrors gh(n, Def.Graph.GetX(), tmpyh, Def.Graph.GetEX(), Def.Graph.GetEY());
+		MyPackGraph pgl(gl, "input syst. d-s", 0.5, 1);
+		MyPackGraph pgh(gh, "input syst. d+s", 0.5, 1);
+		AddVar(idxl, pgl);
+		AddVar(idxh, pgh);
+	} 
+	void AddUnc(const TGraphErrors &g) { // only for DrawSyst()
+		int idxl = AutoNewVid();
+		int idxh = AutoNewVid();
+		AddUnc(idxl, idxh, g);
+	}
 	void ChgVar(int idx, const MyPackGraph &pg) {
 		if(Var.count(idx)==0) {
 			std::cout << "MySystGraph::ChgVar() index " << idx << " does not exist!" << std::endl;
@@ -263,7 +285,8 @@ public:
 				double d = pg.g.GetPoint(i).Py.GetValu() - Def.GetPoint(i).Py.GetValu();
 				double dd = d*d;
 				double ee = fabs(pow(pg.g.GetPoint(i).Py.GetUnce(),2.0) - pow(Def.GetPoint(i).Py.GetUnce(),2.0));
-				double ss = mm==2?(dd-ee):dd;
+				if(mm==3) ee = fabs(pow(pg.g.GetPoint(i).Py.GetUnce(),2.0) + pow(Def.GetPoint(i).Py.GetUnce(),2.0));
+				double ss = (mm==2 || mm==3)?(dd-ee):dd;
 				if(ss<0) ss = 0;
 				sy[i] += w*ss;
 				if(d<0) syl[i] += w*ss;
@@ -468,8 +491,8 @@ public:
 
 	void DrawSyst(TString optstat, TString optsyst) {
 		if(!IsUpdated) Calc();
-		gSyst.Draw(optstat);
-		gStat.Draw(optsyst);
+		gSyst.Draw(optsyst);
+		gStat.Draw(optstat);
 	}
 
 	void DrawAsym(TString opt = "") {
@@ -480,8 +503,8 @@ public:
 
 	void DrawAsym(TString optstat, TString optsyst) {
 		if(!IsUpdated) Calc();
-		gAsym.Draw(optstat);
-		gStat.Draw(optsyst);
+		gAsym.Draw(optsyst);
+		gStat.Draw(optstat);
 	}
 
 	void MakePlot(TString name, TH2D* hFrame, TString StrPath="systplot") {
@@ -590,6 +613,30 @@ public:
 		return sg;
 	}
 
+	const MySystGraph SelectBin(std::vector<int> range) const {
+		MySystGraph sg(*this);
+		sg.SetDef(Def.SelectBin(range));
+		for(auto it=Var.begin(); it!=Var.end(); it++) {
+			int idx = it->first;
+			MyPackGraph pg = it->second;
+			pg.g = pg.g.SelectBin(range);
+			sg.SetVar(idx, pg);
+		}
+		return sg;
+	}
+
+	const MySystGraph SelectBin(int bl, int bh) const {
+		MySystGraph sg(*this);
+		sg.SetDef(Def.SelectBin(bl, bh));
+		for(auto it=Var.begin(); it!=Var.end(); it++) {
+			int idx = it->first;
+			MyPackGraph pg = it->second;
+			pg.g = pg.g.SelectBin(bl, bh);
+			sg.SetVar(idx, pg);
+		}
+		return sg;
+	}
+
 	const MySystGraph MergeUnce() {
 		MySystGraph sg(*this);
 		sg.SetDef(Def.MergeUnce());
@@ -625,9 +672,10 @@ public:
 		return Sn(ss, n);
 	}
 
-	void Print(int width = 176) {
+	void PrintAsym(int width = 176) {
 		if(!IsUpdated) Calc();
 		TString header = Sn("x-value") + Sn("y-value") + Sn("y-error");
+		TString weight = Sn("weight") + Sn("") + Sn("");
 		int n = Def.GetN();
 		vector<TString> number(n);
 		for(int i=0; i<n; i++) {
@@ -649,22 +697,25 @@ public:
 			if(!pg.g.GetIsUpdated()) pg.g.Calc();
 			if(!pg.g.CheckSize(n)) return;
 			header = header + Sn(pg.s);
+			weight = weight + Sn(pg.w);
 			for(int i=0; i<n; i++) {
 				int mm = Mode==0?pg.m:Mode;
 				double w = pg.w;
 				double d = pg.g.GetPoint(i).Py.GetValu() - Def.GetPoint(i).Py.GetValu();
 				double dd = d*d;
 				double ee = fabs(pow(pg.g.GetPoint(i).Py.GetUnce(),2.0) - pow(Def.GetPoint(i).Py.GetUnce(),2.0));
-				double ss = mm==2?(dd-ee):dd;
+				if(mm==3) ee = fabs(pow(pg.g.GetPoint(i).Py.GetUnce(),2.0) + pow(Def.GetPoint(i).Py.GetUnce(),2.0));
+				double ss = (mm==2 || mm==3)?(dd-ee):dd;
 				if(ss<0) ss = 0;
 				sy[i] += w*ss;
 				if(d<0) syl[i] += w*ss;
 				if(d>0) syh[i] += w*ss;
 				int sign = d<0?-1:1;
-				number[i] = number[i] + Sn(sign*sqrt(fabs(w*ss)));
+				number[i] = number[i] + Sn(sign*sqrt(fabs(ss)));
 			}
 		}
 		header = header + Sn("total", 32);
+		weight = weight + Sn("", 32);
 		for(int i=0; i<n; i++) {
 			sy[i] = sqrt(sy[i]);
 			syl[i] = sqrt(syl[i]);
@@ -676,6 +727,9 @@ public:
 			TString tmph;
 			for(int j=0; j<width && iLine*width+j<header.Length(); j++) tmph = tmph + header[iLine*width+j];
 			std::cout << tmph << std::endl;
+			TString tmpw;
+			for(int j=0; j<width && iLine*width+j<weight.Length(); j++) tmpw = tmpw + weight[iLine*width+j];
+			std::cout << tmpw << std::endl;
 			for(int i=0; i<n; i++) {
 				TString tmpn;
 				for(int j=0; j<width && iLine*width+j<number[i].Length(); j++) tmpn = tmpn + number[i][iLine*width+j];
@@ -683,6 +737,298 @@ public:
 			}
 		}
 	}
+
+	void PrintSyst(int width = 176) {
+		if(!IsUpdated) Calc();
+		TString header = Sn("x-value") + Sn("y-value") + Sn("y-error");
+		TString weight = Sn("weight") + Sn("") + Sn("");
+		int n = Def.GetN();
+		vector<TString> number(n);
+		for(int i=0; i<n; i++) {
+			number[i] = Sn(Def.GetPoint(i).Px.GetValu()) + Sn(Def.GetPoint(i).Py.GetValu()) + Sn(Def.GetPoint(i).Py.GetUnce());
+		}
+		double sx[n];
+		double sy[n];
+		double syl[n];
+		double syh[n];
+		for(int i=0; i<n; i++) {
+			sx[i] = Width;
+			sy[i] = 0;
+			syl[i] = 0;
+			syh[i] = 0;
+		}
+		for(auto it=Var.begin(); it!=Var.end(); it++) {
+			const int &idx = it->first;
+			MyPackGraph &pg = it->second;
+			if(!pg.g.GetIsUpdated()) pg.g.Calc();
+			if(!pg.g.CheckSize(n)) return;
+			header = header + Sn(pg.s);
+			weight = weight + Sn(pg.w);
+			for(int i=0; i<n; i++) {
+				int mm = Mode==0?pg.m:Mode;
+				double w = pg.w;
+				double d = pg.g.GetPoint(i).Py.GetValu() - Def.GetPoint(i).Py.GetValu();
+				double dd = d*d;
+				double ee = fabs(pow(pg.g.GetPoint(i).Py.GetUnce(),2.0) - pow(Def.GetPoint(i).Py.GetUnce(),2.0));
+				if(mm==3) ee = fabs(pow(pg.g.GetPoint(i).Py.GetUnce(),2.0) + pow(Def.GetPoint(i).Py.GetUnce(),2.0));
+				double ss = (mm==2 || mm==3)?(dd-ee):dd;
+				if(ss<0) ss = 0;
+				sy[i] += w*ss;
+				if(d<0) syl[i] += w*ss;
+				if(d>0) syh[i] += w*ss;
+				int sign = d<0?-1:1;
+				number[i] = number[i] + Sn(sqrt(fabs(ss)));
+			}
+		}
+		header = header + Sn("total");
+		weight = weight + Sn("");
+		for(int i=0; i<n; i++) {
+			sy[i] = sqrt(sy[i]);
+			syl[i] = sqrt(syl[i]);
+			syh[i] = sqrt(syh[i]);
+			number[i] = number[i] + Sn(sy[i]);
+		}
+		int nLine = header.Length()/width + (header.Length()%width==0?0:1);
+		for(int iLine=0; iLine<nLine; iLine++) {
+			TString tmph;
+			for(int j=0; j<width && iLine*width+j<header.Length(); j++) tmph = tmph + header[iLine*width+j];
+			std::cout << tmph << std::endl;
+			TString tmpw;
+			for(int j=0; j<width && iLine*width+j<weight.Length(); j++) tmpw = tmpw + weight[iLine*width+j];
+			std::cout << tmpw << std::endl;
+			for(int i=0; i<n; i++) {
+				TString tmpn;
+				for(int j=0; j<width && iLine*width+j<number[i].Length(); j++) tmpn = tmpn + number[i][iLine*width+j];
+				std::cout << tmpn << std::endl;
+			}
+		}
+	}
+
+	void Print(int width=176) {
+		PrintAsym(width);
+	}
+
+	void Table() {
+		if(!IsUpdated) Calc();
+		TString tn = " & ";
+		TString header = Sn("x-value") + tn + Sn("y-value") + tn + Sn("y-error");
+		TString weight = Sn("weight") + tn + Sn("") + tn + Sn("");
+		int n = Def.GetN();
+		vector<TString> number(n);
+		for(int i=0; i<n; i++) {
+			double intx;
+			number[i] = (std::modf(Def.GetPoint(i).Px.GetValu()*10,&intx)==0.0?Sn(Form("%.2g",intx/10)):Sn(Def.GetPoint(i).Px.GetValu())) + tn + Sn(Def.GetPoint(i).Py.GetValu()) + tn + Sn(Form("%.2g",Def.GetPoint(i).Py.GetUnce()));
+		}
+		double sx[n];
+		double sy[n];
+		double syl[n];
+		double syh[n];
+		for(int i=0; i<n; i++) {
+			sx[i] = Width;
+			sy[i] = 0;
+			syl[i] = 0;
+			syh[i] = 0;
+		}
+		for(auto it=Var.begin(); it!=Var.end(); it++) {
+			const int &idx = it->first;
+			MyPackGraph &pg = it->second;
+			if(!pg.g.GetIsUpdated()) pg.g.Calc();
+			if(!pg.g.CheckSize(n)) return;
+			header = header + tn + Sn(pg.s);
+			weight = weight + tn + Sn(Form("%.2g",pg.w));
+			for(int i=0; i<n; i++) {
+				int mm = Mode==0?pg.m:Mode;
+				double w = pg.w;
+				double d = pg.g.GetPoint(i).Py.GetValu() - Def.GetPoint(i).Py.GetValu();
+				double dd = d*d;
+				double ee = fabs(pow(pg.g.GetPoint(i).Py.GetUnce(),2.0) - pow(Def.GetPoint(i).Py.GetUnce(),2.0));
+				if(mm==3) ee = fabs(pow(pg.g.GetPoint(i).Py.GetUnce(),2.0) + pow(Def.GetPoint(i).Py.GetUnce(),2.0));
+				double ss = (mm==2 || mm==3)?(dd-ee):dd;
+				if(ss<0) ss = 0;
+				sy[i] += w*ss;
+				if(d<0) syl[i] += w*ss;
+				if(d>0) syh[i] += w*ss;
+				int sign = d<0?-1:1;
+				//number[i] = number[i] + tn + Sn(Form("%.2g",sign*sqrt(fabs(ss))));
+				number[i] = number[i] + tn + Sn(Form("%.2g",d));
+			}
+		}
+		header = header + tn + Sn("total", 32) + tn + Sn("sym-total", 16);
+		weight = weight + tn + Sn("",32) + tn + Sn("",16);
+		for(int i=0; i<n; i++) {
+			sy[i] = sqrt(sy[i]);
+			syl[i] = sqrt(syl[i]);
+			syh[i] = sqrt(syh[i]);
+			number[i] = number[i] + tn + Sn(Form("-%.2g+%.2g", syl[i], syh[i]), 32) + tn + Sn(Form("%.2g",sy[i]));
+		}
+
+		std::cout << header << " \\\\ \\hline" << std::endl;
+		std::cout << weight << " \\\\ \\hline" << std::endl;
+		for(int i=0; i<n; i++) {
+			std::cout << number[i] << " \\\\ " << std::endl;
+		}
+		std::cout << "\\hline" << std::endl;
+	}
+
+	void TableErr(bool isInline = false) {
+		if(!IsUpdated) Calc();
+		TString tn = " & ";
+		TString header = Sn("x-value") + tn + Sn("y-value") + tn + Sn("y-error");
+		TString weight = Sn("weight") + tn + Sn("") + tn + Sn("");
+		int n = Def.GetN();
+		vector<TString> number(n);
+		vector<TString> diferr(n);
+		vector<TString> numerr(n);
+		for(int i=0; i<n; i++) {
+			double intx;
+			number[i] = (std::modf(Def.GetPoint(i).Px.GetValu()*10,&intx)==0.0?Sn(Form("%.2g",intx/10)):Sn(Def.GetPoint(i).Px.GetValu())) + tn + Sn(Def.GetPoint(i).Py.GetValu()) + tn + Sn(Form("%.2g",Def.GetPoint(i).Py.GetUnce()));
+			diferr[i] = Sn("") + tn + Sn("") + tn + Sn("");
+			numerr[i] = number[i];
+		}
+		double sx[n];
+		double sy[n];
+		double syl[n];
+		double syh[n];
+		for(int i=0; i<n; i++) {
+			sx[i] = Width;
+			sy[i] = 0;
+			syl[i] = 0;
+			syh[i] = 0;
+		}
+		for(auto it=Var.begin(); it!=Var.end(); it++) {
+			const int &idx = it->first;
+			MyPackGraph &pg = it->second;
+			if(!pg.g.GetIsUpdated()) pg.g.Calc();
+			if(!pg.g.CheckSize(n)) return;
+			header = header + tn + Sn(pg.s, isInline?24:16);
+			weight = weight + tn + Sn(Form("%.2g",pg.w), isInline?24:16);
+			for(int i=0; i<n; i++) {
+				int mm = Mode==0?pg.m:Mode;
+				double w = pg.w;
+				double d = pg.g.GetPoint(i).Py.GetValu() - Def.GetPoint(i).Py.GetValu();
+				double dd = d*d;
+				double ee = fabs(pow(pg.g.GetPoint(i).Py.GetUnce(),2.0) - pow(Def.GetPoint(i).Py.GetUnce(),2.0));
+				if(mm==3) ee = fabs(pow(pg.g.GetPoint(i).Py.GetUnce(),2.0) + pow(Def.GetPoint(i).Py.GetUnce(),2.0));
+				double ss = (mm==2 || mm==3)?(dd-ee):dd;
+				if(ss<0) ss = 0;
+				sy[i] += w*ss;
+				if(d<0) syl[i] += w*ss;
+				if(d>0) syh[i] += w*ss;
+				int sign = d<0?-1:1;
+				//number[i] = number[i] + tn + Sn(Form("%.2g",sign*sqrt(fabs(ss))));
+				number[i] = number[i] + tn + Sn(Form("%.2g",d));
+				diferr[i] = diferr[i] + tn + Sn(Form("$\\pm$%.2g",sqrt(ee)));
+				//numerr[i] = numerr[i] + tn + Sn(Form("%.2g$\\pm$%.2g", sign*sqrt(fabs(ss)), sqrt(ee)), 24);
+				numerr[i] = numerr[i] + tn + Sn(Form("%.2g$\\pm$%.2g", d, sqrt(ee)), 24);
+			}
+		}
+		header = header + tn + Sn("total");
+		weight = weight + tn + Sn("");
+		for(int i=0; i<n; i++) {
+			sy[i] = sqrt(sy[i]);
+			syl[i] = sqrt(syl[i]);
+			syh[i] = sqrt(syh[i]);
+			number[i] = number[i] + tn + Sn(Form("$\\pm$%.2g",sy[i]));
+			diferr[i] = diferr[i] + tn + Sn("");
+			numerr[i] = numerr[i] + tn + Sn(Form("$\\pm$%.2g",sy[i]));
+		}
+
+		std::cout << header << " \\\\ \\hline" << std::endl;
+		std::cout << weight << " \\\\ \\hline" << std::endl;
+		for(int i=0; i<n; i++) {
+			if(isInline) {
+				std::cout << numerr[i] << " \\\\ \\hline" << std::endl;
+			} else {
+				std::cout << number[i] << " \\\\ " << std::endl;
+				std::cout << diferr[i] << " \\\\ \\hline" << std::endl;
+			}
+		}
+		std::cout << "\\hline" << std::endl;
+	}
+/*
+	void TableOpt() {
+		if(!IsUpdated) Calc();
+		TString tn = " & ";
+		int n = Def.GetN();
+		int m = Var.size();
+		std::vector<TString> mt;
+		std::vector<double> mw;
+		std::vector<double> ms[n];
+		std::vector<double> me[n];
+		mt.push_back("x-value"); mw.push_back(-999);
+		mt.push_back("y-value"); mw.push_back(-999);
+		mt.push_back("y-error"); mw.push_back(-999);
+		for(int i=0; i<n; i++) {
+			ms[i].push_back(Def.GetPoint(i).Px.GetValu()); me[i].push_back(-999);
+			ms[i].push_back(Def.GetPoint(i).Py.GetValu()); me[i].push_back(-999);
+			ms[i].push_back(Def.GetPoint(i).Py.GetUnce()); me[i].push_back(-999);
+		}
+		double sx[n];
+		double sy[n];
+		double syl[n];
+		double syh[n];
+		for(int i=0; i<n; i++) {
+			sx[i] = Width;
+			sy[i] = 0;
+			syl[i] = 0;
+			syh[i] = 0;
+		}
+		for(auto it=Var.begin(); it!=Var.end(); it++) {
+			const int &idx = it->first;
+			MyPackGraph &pg = it->second;
+			if(!pg.g.GetIsUpdated()) pg.g.Calc();
+			if(!pg.g.CheckSize(n)) return;
+			mt.push_back(pg.s);
+			mw.push_back(pg.w);
+			for(int i=0; i<n; i++) {
+				int mm = Mode==0?pg.m:Mode;
+				double w = pg.w;
+				double d = pg.g.GetPoint(i).Py.GetValu() - Def.GetPoint(i).Py.GetValu();
+				double dd = d*d;
+				double ee = fabs(pow(pg.g.GetPoint(i).Py.GetUnce(),2.0) - pow(Def.GetPoint(i).Py.GetUnce(),2.0));
+				if(mm==3) ee = fabs(pow(pg.g.GetPoint(i).Py.GetUnce(),2.0) + pow(Def.GetPoint(i).Py.GetUnce(),2.0));
+				double ss = (mm==2 || m==3)?(dd-ee):dd;
+				if(ss<0) ss = 0;
+				sy[i] += w*ss;
+				if(d<0) syl[i] += w*ss;
+				if(d>0) syh[i] += w*ss;
+				int sign = d<0?-1:1;
+				//ms[i].push_back(sign*sqrt(fabs(ss)));
+				ms[i].push_back(d);
+				me[i].push_back(sqrt(ee));
+			}
+		}
+		mt.push_back("total");
+		mw.push_back(-999);
+		for(int i=0; i<n; i++) {
+			sy[i] = sqrt(sy[i]);
+			syl[i] = sqrt(syl[i]);
+			syh[i] = sqrt(syh[i]);
+			ms[i].push_back(sy[i]);
+			me[i].push_back(-999);
+		}
+
+		bool isVert = true;
+		if(isVert) {
+			for(int j=0; j<mt.size(); j++) {
+				TString tmpend = (j==(mt.size()-1))?" \\\\ \\hline":tn;
+				std::cout << Sn(mt[j]) << tmpend;
+			}
+			std::cout << std::endl;
+			for(int j=0; j<mw.size(); j++) {
+				TString tmpend = (j==(mw.size()-1))?" \\\\ \\hline":tn;
+				std::cout << (j==0?Sn("weight"):(mw[j]<0?Sn(""):Sn(Form("%.2g",mw[j])))) << tmpend;
+			}
+			std::cout << std::endl;
+			for(int i=0; i<n; i++) {
+				for(int j=0; j<ms[i].size(); j++) {
+				TString tmpend = (j==(mw.size()-1))?" \\\\ \\hline":tn;
+					
+				}
+			}
+		}
+	}
+*/
 
 	void Write(TFile *f, TString name) const {
 		f->WriteObjectAny(this, "MySystGraph", name);
