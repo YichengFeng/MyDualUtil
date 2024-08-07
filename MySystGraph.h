@@ -199,7 +199,7 @@ public:
 		AutoNewVid();
 		AddVar(VidNow, pg);
 	}
-	void AddUnc(int idxl, int idxh, const TGraphErrors &g) { // only for DrawSyst()
+	void AddUnc(int idxl, int idxh, const TGraphErrors &g, TString ss="input") { // only for DrawSyst()
 		const int n = Def.GetN();
 		Def.Calc();
 		if(g.GetN() != n) std::cout << "MySystGraph::AddUnc() size does not match!" << std::endl;
@@ -211,15 +211,15 @@ public:
 		}
 		TGraphErrors gl(n, Def.Graph.GetX(), tmpyl, Def.Graph.GetEX(), Def.Graph.GetEY());
 		TGraphErrors gh(n, Def.Graph.GetX(), tmpyh, Def.Graph.GetEX(), Def.Graph.GetEY());
-		MyPackGraph pgl(gl, "input syst. d-s", 0.5, 1);
-		MyPackGraph pgh(gh, "input syst. d+s", 0.5, 1);
+		MyPackGraph pgl(gl, ss+" syst. d-s", 0.5, 1);
+		MyPackGraph pgh(gh, ss+" syst. d+s", 0.5, 1);
 		AddVar(idxl, pgl);
 		AddVar(idxh, pgh);
 	} 
-	void AddUnc(const TGraphErrors &g) { // only for DrawSyst()
+	void AddUnc(const TGraphErrors &g, TString ss="input") { // only for DrawSyst()
 		int idxl = AutoNewVid();
 		int idxh = AutoNewVid();
-		AddUnc(idxl, idxh, g);
+		AddUnc(idxl, idxh, g, ss);
 	}
 	void ChgVar(int idx, const MyPackGraph &pg) {
 		if(Var.count(idx)==0) {
@@ -246,6 +246,11 @@ public:
 			Var.erase(idx);
 		}
 		IsUpdated = false;
+	}
+	void EraseVar(std::vector<int> vidx) {
+		for(int i=0; i<vidx.size(); i++) {
+			EraseVar(vidx[i]);
+		}
 	}
 	const MyPackGraph GetVar(int idx) const {
 		if(Var.count(idx)==0) {
@@ -476,6 +481,54 @@ public:
 		gSyst.GetXaxis()->SetLimits(xl, xh);
 		gAsym.GetXaxis()->SetLimits(xl, xh);
 		gStat.GetXaxis()->SetLimits(xl, xh);
+	}
+
+	void SetXaxisLimit(double xl, double xh) {
+		if(!IsUpdated) Calc();
+		vector<double> vx, vy, ex, ey, exl, exh, eyl, eyh;
+
+		vx.clear();
+		vy.clear();
+		ex.clear();
+		ey.clear();
+		for(int i=0; i<gSyst.GetN(); i++) {
+			if(gSyst.GetX()[i]<xl || gSyst.GetX()[i]>=xh) continue;
+			vx.push_back(gSyst.GetX()[i]);
+			vy.push_back(gSyst.GetY()[i]);
+			ex.push_back(gSyst.GetEX()[i]);
+			ey.push_back(gSyst.GetEY()[i]);
+		}
+		gSyst = TGraphErrors(vx.size(), &vx[0], &vy[0], &ex[0], &ey[0]);
+
+		vx.clear();
+		vy.clear();
+		ex.clear();
+		ey.clear();
+		for(int i=0; i<gStat.GetN(); i++) {
+			if(gStat.GetX()[i]<xl || gStat.GetX()[i]>=xh) continue;
+			vx.push_back(gStat.GetX()[i]);
+			vy.push_back(gStat.GetY()[i]);
+			ex.push_back(gStat.GetEX()[i]);
+			ey.push_back(gStat.GetEY()[i]);
+		}
+		gStat = TGraphErrors(vx.size(), &vx[0], &vy[0], &ex[0], &ey[0]);
+
+		vx.clear();
+		vy.clear();
+		exl.clear();
+		exh.clear();
+		eyl.clear();
+		eyh.clear();
+		for(int i=0; i<gAsym.GetN(); i++) {
+			if(gAsym.GetX()[i]<xl || gAsym.GetX()[i]>=xh) continue;
+			vx.push_back(gAsym.GetX()[i]);
+			vy.push_back(gAsym.GetY()[i]);
+			exl.push_back(gAsym.GetEXlow ()[i]);
+			exh.push_back(gAsym.GetEXhigh()[i]);
+			eyl.push_back(gAsym.GetEYlow ()[i]);
+			eyh.push_back(gAsym.GetEYhigh()[i]);
+		}
+		gAsym = TGraphAsymmErrors(vx.size(), &vx[0], &vy[0], &exl[0],&exh[0], &eyl[0],&eyh[0]);
 	}
 
 	void DrawStat(TString opt = "") {
