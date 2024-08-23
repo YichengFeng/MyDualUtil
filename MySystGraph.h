@@ -85,6 +85,7 @@ private:
 
 	// is graphs updated
 	bool IsUpdated;
+	bool IsHoldForDraw;
 
 public:
 	// graphs for plot
@@ -103,6 +104,7 @@ public:
 		Var.clear();
 		Width = 0.8;
 		IsUpdated = false;
+		IsHoldForDraw = false;
 	}
 
 	MySystGraph() {
@@ -460,7 +462,7 @@ public:
 	}
 
 	void SetStyleColor(Int_t style, Int_t color) {
-		if(!IsUpdated) Calc();
+		if(!IsUpdated && !IsHoldForDraw) Calc();
 		gSyst.SetFillStyle(0);
 		gAsym.SetFillStyle(0);
 		gSyst.SetFillColor(color);
@@ -529,33 +531,36 @@ public:
 			eyh.push_back(gAsym.GetEYhigh()[i]);
 		}
 		gAsym = TGraphAsymmErrors(vx.size(), &vx[0], &vy[0], &exl[0],&exh[0], &eyl[0],&eyh[0]);
+
+		IsUpdated = false;
+		IsHoldForDraw = true;
 	}
 
 	void DrawStat(TString opt = "") {
-		if(!IsUpdated) Calc();
+		if(!IsUpdated && !IsHoldForDraw) Calc();
 		gStat.Draw("PL"+opt+" same");
 	}
 
 	void DrawSyst(TString opt = "") {
-		if(!IsUpdated) Calc();
+		if(!IsUpdated && !IsHoldForDraw) Calc();
 		gSyst.Draw("P5"+opt+" same");
 		gStat.Draw("PL"+opt+" same");
 	}
 
 	void DrawSyst(TString optstat, TString optsyst) {
-		if(!IsUpdated) Calc();
+		if(!IsUpdated && !IsHoldForDraw) Calc();
 		gSyst.Draw(optsyst);
 		gStat.Draw(optstat);
 	}
 
 	void DrawAsym(TString opt = "") {
-		if(!IsUpdated) Calc();
+		if(!IsUpdated && !IsHoldForDraw) Calc();
 		gAsym.Draw("P5"+opt+" same");
 		gStat.Draw("PL"+opt+" same");
 	}
 
 	void DrawAsym(TString optstat, TString optsyst) {
-		if(!IsUpdated) Calc();
+		if(!IsUpdated && !IsHoldForDraw) Calc();
 		gAsym.Draw(optsyst);
 		gStat.Draw(optstat);
 	}
@@ -595,14 +600,18 @@ public:
 		int nsx = (int)Var.size() + 2;
 		int isx = 1;
 		int i = 0;
+		double sw = 0.06*nsx;
+		if(sw<0.6) sw = 0.6;
+		if(sw>1.0) sw = 1.0;
 		for(auto it=Var.begin(); it!=Var.end(); it++) {
 			const int &idx = it->first;
 			MyPackGraph &pg = it->second;
 			TGraphErrors &gVar = pg.g.Graph;
-			for(int j=0; j<gTmp.GetN(); j++) gVar.GetX()[j] += 0.6*bw*isx/nsx;
+			for(int j=0; j<gTmp.GetN(); j++) gVar.GetX()[j] += sw*bw*isx/nsx;
 			isx++;
 			gVar.SetMarkerStyle(24+i);
-			int col = i==3?kOrange+1:(i<8?i+2:i+3);
+			//int col = i==3?kOrange+1:(i<8?i+2:i+3);
+			int col = i==3?kOrange+1:(i<8?i+2:(i<13?i+3:i+10));
 			gVar.SetMarkerColor(col);
 			gVar.SetLineColor(col);
 			gVar.Draw("P same");
@@ -1085,6 +1094,14 @@ public:
 
 	void Write(TFile *f, TString name) const {
 		f->WriteObjectAny(this, "MySystGraph", name);
+	}
+
+	void WriteGraph(TString name="", bool isstat=true, bool issyst=true, bool isasym=false) {
+		//if(!IsUpdated) Calc();
+		ShiftX();
+		if(isstat) gStat.Write(name+"Stat");
+		if(issyst) gSyst.Write(name+"Syst");
+		if(isasym) gAsym.Write(name+"Asym");
 	}
 };
 
