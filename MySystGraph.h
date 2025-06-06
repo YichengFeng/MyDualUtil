@@ -46,7 +46,7 @@ public:
 		g = gg;
 		s = ss;
 		w = ww;
-		if(mm==1 || mm==2) {
+		if(mm==1 || mm==2 || mm==3) {
 			m = mm;
 		} else {
 			m = 1;
@@ -56,7 +56,7 @@ public:
 		g = MyDualGraph(gg);
 		s = ss;
 		w = ww;
-		if(mm==1 || mm==2) {
+		if(mm==1 || mm==2 || mm==3) {
 			m = mm;
 		} else {
 			m = 1;
@@ -80,6 +80,10 @@ private:
 	MyDualGraph Def;
 	std::map<int,MyPackGraph> Var;
 
+	vector< vector<double> > syVar;  // syst^2 for each variation
+	vector< vector<double> > sylVar; // syst^2 for each variation
+	vector< vector<double> > syhVar; // syst^2 for each variation
+
 	// systematic box width
 	double Width;
 
@@ -91,6 +95,7 @@ public:
 	// graphs for plot
 	TGraphErrors gStat;
 	TGraphErrors gSyst;
+	TGraphErrors gComb;
 	TGraphAsymmErrors gAsym;
 
 	static int VidNow; // the latest index
@@ -136,6 +141,7 @@ public:
 		//Var = sg1.Var;
 		//Width = sg1.Width;
 		*this = sg1;
+		if(!IsUpdated) Calc();
 	}
 	~MySystGraph() {
 		Reset();
@@ -156,6 +162,10 @@ public:
 
 	void SetWidth(double width) {
 		Width = fabs(width);
+		for(int i=0; i<gSyst.GetN(); i++) {
+			gSyst.GetEX()[i] = Width;
+			gComb.GetEX()[i] = Width;
+		}
 	}
 	double GetWidth() const {
 		return Width;
@@ -281,11 +291,17 @@ public:
 			syl[i] = 0;
 			syh[i] = 0;
 		}
+		syVar.clear();
+		sylVar.clear();
+		syhVar.clear();
 		for(auto it=Var.begin(); it!=Var.end(); it++) {
 			const int &idx = it->first;
 			MyPackGraph &pg = it->second;
 			if(!pg.g.GetIsUpdated()) pg.g.Calc();
 			if(!pg.g.CheckSize(n)) return;
+			vector<double> sylVarOne;
+			vector<double> syhVarOne;
+			vector<double> syVarOne;
 			for(int i=0; i<n; i++) {
 				int mm = Mode==0?pg.m:Mode;
 				double w = pg.w;
@@ -298,7 +314,18 @@ public:
 				sy[i] += w*ss;
 				if(d<0) syl[i] += w*ss;
 				if(d>0) syh[i] += w*ss;
+				syVarOne.push_back(w*ss);
+				if(d<0) {
+					sylVarOne.push_back(w*ss);
+					syhVarOne.push_back(0);
+				} else {
+					sylVarOne.push_back(0);
+					syhVarOne.push_back(w*ss);
+				}
 			}
+			syVar.push_back(syVarOne);
+			sylVar.push_back(sylVarOne);
+			syhVar.push_back(syhVarOne);
 		}
 		for(int i=0; i<n; i++) {
 			sy[i] = sqrt(sy[i]);
@@ -309,136 +336,153 @@ public:
 		gStat = Def.Graph;
 		gSyst = TGraphErrors(n, gStat.GetX(), gStat.GetY(), sx, sy);
 		gAsym = TGraphAsymmErrors(n, gStat.GetX(), gStat.GetY(), sx, sx, syl, syh);
+
+		double syc[n];
+		for(int i=0; i<n; i++) {
+			syc[i] = sqrt(pow(gStat.GetEY()[i],2) + pow(gSyst.GetEY()[i],2));
+		}
+		gComb = TGraphErrors(n, gStat.GetX(), gStat.GetY(), sx, syc);
+
 		IsUpdated = true;
 	}
 
-	TString StrLatex(int i=0, string symboltype="R") {
-		if(!Def.CheckIndex(i)) return TString();
+	void CalcIfNotUpdated() {
 		if(!IsUpdated) Calc();
-
-		double e_val, e_err;
-		int e_n10, e_np;
-		MyDualNumber e_dn(gStat.GetY()[i], gStat.GetEY()[i]);
-		e_dn.StrLatex(e_val, e_err, e_n10, e_np);
-
-		double s_val, s_err;
-		int s_n10, s_np;
-		MyDualNumber s_dn(gSyst.GetY()[i], gSyst.GetEY()[i]);
-		s_dn.StrLatex(s_val, s_err, s_n10, s_np);
-
-		double val, err, sys;
-		int n10, np;
-		//if(s_n10 < e_n10) {
-		if(gSyst.GetEY()[i] < gStat.GetEY()[i] && gSyst.GetEY()[i] != 0) {
-			val = s_val;
-			err = e_err * pow(10.0, 1.0*(e_n10-s_n10));
-			sys = s_err;
-			n10 = s_n10;
-			np = s_np;
-		} else {
-			val = e_val;
-			err = e_err;
-			sys = s_err * pow(10.0, 1.0*(s_n10-e_n10));
-			n10 = e_n10;
-			np = e_np;
-		}
-
-		std::stringstream strval;
-		std::stringstream strerr;
-		std::stringstream strsys;
-		strval << std::fixed << std::setprecision(np) << val;
-		strerr << std::fixed << std::setprecision(np) << err;
-		strsys << std::fixed << std::setprecision(np) << sys;
-		std::stringstream strlatex;
-		if(n10==0) {
-			if(symboltype=="L") {
-				strlatex << strval.str() << "\\pm" << strerr.str() << "\\pm" << strsys.str();
-			} else {
-				strlatex << strval.str() << "#pm" << strerr.str() << "#pm" << strsys.str();
-			}
-		} else {
-			if(symboltype=="L") {
-				strlatex << "(" << strval.str() << "\\pm" << strerr.str() << "\\pm" << strsys.str() << ")\\times10^{" << n10 << "}";
-			} else {
-				strlatex << "(" << strval.str() << "#pm" << strerr.str() << "#pm" << strsys.str() << ")#times10^{" << n10 << "}";
-			}
-		}
-		TString tstrlatex = strlatex.str();
-
-		return tstrlatex;
 	}
 
-	TString StrLatexAsym(int i=0, string symboltype="R") {
+	TString StrLatex(int i=0, std::string symboltype="R") {
 		if(!Def.CheckIndex(i)) return TString();
 		if(!IsUpdated) Calc();
 
-		double e_val, e_err;
-		int e_n10, e_np;
-		MyDualNumber e_dn(gStat.GetY()[i], gStat.GetEY()[i]);
-		e_dn.StrLatex(e_val, e_err, e_n10, e_np);
+		MyValuErrs ve(gStat.GetY()[i], gStat.GetEY()[i], gSyst.GetEY()[i]);
+		return TString(ve.PrintErr2(symboltype));
 
-		double sl_val, sl_err;
-		int sl_n10, sl_np;
-		MyDualNumber sl_dn(gAsym.GetY()[i], gAsym.GetEYlow()[i]);
-		sl_dn.StrLatex(sl_val, sl_err, sl_n10, sl_np);
+//		double e_val, e_err;
+//		int e_n10, e_np;
+//		MyDualNumber e_dn(gStat.GetY()[i], gStat.GetEY()[i]);
+//		e_dn.StrLatex(e_val, e_err, e_n10, e_np);
+//
+//		double s_val, s_err;
+//		int s_n10, s_np;
+//		MyDualNumber s_dn(gSyst.GetY()[i], gSyst.GetEY()[i]);
+//		s_dn.StrLatex(s_val, s_err, s_n10, s_np);
+//
+//		double val, err, sys;
+//		int n10, np;
+//		//if(s_n10 < e_n10) {
+//		if(gSyst.GetEY()[i] < gStat.GetEY()[i] && gSyst.GetEY()[i] != 0) {
+//			val = s_val;
+//			err = e_err * pow(10.0, 1.0*(e_n10-s_n10));
+//			sys = s_err;
+//			n10 = s_n10;
+//			np = s_np;
+//		} else {
+//			val = e_val;
+//			err = e_err;
+//			sys = s_err * pow(10.0, 1.0*(s_n10-e_n10));
+//			n10 = e_n10;
+//			np = e_np;
+//		}
+//
+//		std::stringstream strval;
+//		std::stringstream strerr;
+//		std::stringstream strsys;
+//		strval << std::fixed << std::setprecision(np) << val;
+//		strerr << std::fixed << std::setprecision(np) << err;
+//		strsys << std::fixed << std::setprecision(np) << sys;
+//		std::stringstream strlatex;
+//		if(n10==0) {
+//			if(symboltype=="L") {
+//				strlatex << strval.str() << "\\pm" << strerr.str() << "\\pm" << strsys.str();
+//			} else {
+//				strlatex << strval.str() << "#pm" << strerr.str() << "#pm" << strsys.str();
+//			}
+//		} else {
+//			if(symboltype=="L") {
+//				strlatex << "(" << strval.str() << "\\pm" << strerr.str() << "\\pm" << strsys.str() << ")\\times10^{" << n10 << "}";
+//			} else {
+//				strlatex << "(" << strval.str() << "#pm" << strerr.str() << "#pm" << strsys.str() << ")#times10^{" << n10 << "}";
+//			}
+//		}
+//		TString tstrlatex = strlatex.str();
+//
+//		return tstrlatex;
+	}
 
-		double sh_val, sh_err;
-		int sh_n10, sh_np;
-		MyDualNumber sh_dn(gAsym.GetY()[i], gAsym.GetEYhigh()[i]);
-		sh_dn.StrLatex(sh_val, sh_err, sh_n10, sh_np);
+	TString StrLatexAsym(int i=0, std::string symboltype="R") {
+		if(!Def.CheckIndex(i)) return TString();
+		if(!IsUpdated) Calc();
 
-		double val, err, syl, syh;
-		int n10, np;
-		//if(sl_n10 < e_n10 && sl_n10 < sh_n10) {
-		if(gAsym.GetEYlow()[i] < gStat.GetEY()[i] && (gAsym.GetEYlow()[i] < gAsym.GetEYhigh()[i] || gAsym.GetEYhigh()[i] == 0) && gAsym.GetEYlow()[i] > 0) {
-			val = sl_val;
-			err = e_err * pow(10.0, 1.0*(e_n10-sl_n10));
-			syl = sl_err;
-			syh = sh_err * pow(10.0, 1.0*(sh_n10-sl_n10));
-			n10 = sl_n10;
-			np = sl_np;
-		//} else if(sh_n10 < e_n10 && sh_n10 < sl_n10) {
-		} else if(gAsym.GetEYhigh()[i] < gStat.GetEY()[i] && (gAsym.GetEYhigh()[i] < gAsym.GetEYlow()[i] || gAsym.GetEYlow()[i] == 0) && gAsym.GetEYhigh()[i] > 0) {
-			val = sh_val;
-			err = e_err * pow(10.0, 1.0*(e_n10-sh_n10));
-			syl = sl_err * pow(10.0, 1.0*(sl_n10-sh_n10));
-			syh = sh_err;
-			n10 = sh_n10;
-			np = sh_np;
-		} else {
-			val = e_val;
-			err = e_err;
-			syl = sl_err * pow(10.0, 1.0*(sl_n10-e_n10));
-			syh = sh_err * pow(10.0, 1.0*(sh_n10-e_n10));
-			n10 = e_n10;
-			np = e_np;
-		}
+		MyValuErrs ve(gStat.GetY()[i], gStat.GetEY()[i], gAsym.GetEYlow()[i], gAsym.GetEYhigh()[i]);
+		return TString(ve.PrintErr3(symboltype));
 
-		std::stringstream strval;
-		std::stringstream strerr;
-		std::stringstream strsyl;
-		std::stringstream strsyh;
-		strval << std::fixed << std::setprecision(np) << val;
-		strerr << std::fixed << std::setprecision(np) << err;
-		strsyl << std::fixed << std::setprecision(np) << syl;
-		strsyh << std::fixed << std::setprecision(np) << syh;
-		std::stringstream strlatex;
-		if(n10==0) {
-			if(symboltype=="L") {
-				strlatex << strval.str() << "\\pm" << strerr.str() << "_{-" << strsyl.str() << "}^{+" << strsyh.str() << "}";
-			} else {
-				strlatex << strval.str() << "#pm" << strerr.str() << "_{-" << strsyl.str() << "}^{+" << strsyh.str() << "}";
-			}
-		} else {
-			if(symboltype=="L") {
-				strlatex << "(" << strval.str() << "\\pm" << strerr.str() << "_{-" << strsyl.str() << "}^{+" << strsyh.str() << "})\\times10^{" << n10 << "}";
-			} else {
-				strlatex << "(" << strval.str() << "#pm" << strerr.str() << "_{-" << strsyl.str() << "}^{+" << strsyh.str() << "})#times10^{" << n10 << "}";
-			}
-		}
-		TString tstrlatex = strlatex.str();
-
-		return tstrlatex;
+//		double e_val, e_err;
+//		int e_n10, e_np;
+//		MyDualNumber e_dn(gStat.GetY()[i], gStat.GetEY()[i]);
+//		e_dn.StrLatex(e_val, e_err, e_n10, e_np);
+//
+//		double sl_val, sl_err;
+//		int sl_n10, sl_np;
+//		MyDualNumber sl_dn(gAsym.GetY()[i], gAsym.GetEYlow()[i]);
+//		sl_dn.StrLatex(sl_val, sl_err, sl_n10, sl_np);
+//
+//		double sh_val, sh_err;
+//		int sh_n10, sh_np;
+//		MyDualNumber sh_dn(gAsym.GetY()[i], gAsym.GetEYhigh()[i]);
+//		sh_dn.StrLatex(sh_val, sh_err, sh_n10, sh_np);
+//
+//		double val, err, syl, syh;
+//		int n10, np;
+//		//if(sl_n10 < e_n10 && sl_n10 < sh_n10) {
+//		if(gAsym.GetEYlow()[i] < gStat.GetEY()[i] && (gAsym.GetEYlow()[i] < gAsym.GetEYhigh()[i] || gAsym.GetEYhigh()[i] == 0) && gAsym.GetEYlow()[i] > 0) {
+//			val = sl_val;
+//			err = e_err * pow(10.0, 1.0*(e_n10-sl_n10));
+//			syl = sl_err;
+//			syh = sh_err * pow(10.0, 1.0*(sh_n10-sl_n10));
+//			n10 = sl_n10;
+//			np = sl_np;
+//		//} else if(sh_n10 < e_n10 && sh_n10 < sl_n10) {
+//		} else if(gAsym.GetEYhigh()[i] < gStat.GetEY()[i] && (gAsym.GetEYhigh()[i] < gAsym.GetEYlow()[i] || gAsym.GetEYlow()[i] == 0) && gAsym.GetEYhigh()[i] > 0) {
+//			val = sh_val;
+//			err = e_err * pow(10.0, 1.0*(e_n10-sh_n10));
+//			syl = sl_err * pow(10.0, 1.0*(sl_n10-sh_n10));
+//			syh = sh_err;
+//			n10 = sh_n10;
+//			np = sh_np;
+//		} else {
+//			val = e_val;
+//			err = e_err;
+//			syl = sl_err * pow(10.0, 1.0*(sl_n10-e_n10));
+//			syh = sh_err * pow(10.0, 1.0*(sh_n10-e_n10));
+//			n10 = e_n10;
+//			np = e_np;
+//		}
+//
+//		std::stringstream strval;
+//		std::stringstream strerr;
+//		std::stringstream strsyl;
+//		std::stringstream strsyh;
+//		strval << std::fixed << std::setprecision(np) << val;
+//		strerr << std::fixed << std::setprecision(np) << err;
+//		strsyl << std::fixed << std::setprecision(np) << syl;
+//		strsyh << std::fixed << std::setprecision(np) << syh;
+//		std::stringstream strlatex;
+//		if(n10==0) {
+//			if(symboltype=="L") {
+//				strlatex << strval.str() << "\\pm" << strerr.str() << "_{-" << strsyl.str() << "}^{+" << strsyh.str() << "}";
+//			} else {
+//				strlatex << strval.str() << "#pm" << strerr.str() << "_{-" << strsyl.str() << "}^{+" << strsyh.str() << "}";
+//			}
+//		} else {
+//			if(symboltype=="L") {
+//				strlatex << "(" << strval.str() << "\\pm" << strerr.str() << "_{-" << strsyl.str() << "}^{+" << strsyh.str() << "})\\times10^{" << n10 << "}";
+//			} else {
+//				strlatex << "(" << strval.str() << "#pm" << strerr.str() << "_{-" << strsyl.str() << "}^{+" << strsyh.str() << "})#times10^{" << n10 << "}";
+//			}
+//		}
+//		TString tstrlatex = strlatex.str();
+//
+//		return tstrlatex;
 	}
 
 	void ShiftX() {
@@ -447,6 +491,7 @@ public:
 		for(int i=0; i<gStat.GetN(); i++) {
 			gStat.GetX()[i] = Def.Graph.GetX()[i];
 			gSyst.GetX()[i] = Def.Graph.GetX()[i];
+			gComb.GetX()[i] = Def.Graph.GetX()[i];
 			gAsym.GetX()[i] = Def.Graph.GetX()[i];
 		}
 	}
@@ -457,6 +502,7 @@ public:
 		for(int i=0; i<gStat.GetN(); i++) {
 			gStat.GetX()[i] = Def.Graph.GetX()[i] + dx;
 			gSyst.GetX()[i] = Def.Graph.GetX()[i] + dx;
+			gComb.GetX()[i] = Def.Graph.GetX()[i] + dx;
 			gAsym.GetX()[i] = Def.Graph.GetX()[i] + dx;
 		}
 	}
@@ -464,16 +510,21 @@ public:
 	void SetStyleColor(Int_t style, Int_t color) {
 		if(!IsUpdated && !IsHoldForDraw) Calc();
 		gSyst.SetFillStyle(0);
+		gComb.SetFillStyle(0);
 		gAsym.SetFillStyle(0);
 		gSyst.SetFillColor(color);
+		gComb.SetFillColor(color);
 		gAsym.SetFillColor(color);
 		gSyst.SetMarkerStyle(style);
+		gComb.SetMarkerStyle(style);
 		gAsym.SetMarkerStyle(style);
 		gStat.SetMarkerStyle(style);
 		gSyst.SetMarkerColor(color);
+		gComb.SetMarkerColor(color);
 		gAsym.SetMarkerColor(color);
 		gStat.SetMarkerColor(color);
 		gSyst.SetLineColor(color);
+		gComb.SetLineColor(color);
 		gAsym.SetLineColor(color);
 		gStat.SetLineColor(color);
 	}
@@ -481,6 +532,7 @@ public:
 	void SetXaxisRange(double xl, double xh) {
 		if(!IsUpdated) Calc();
 		gSyst.GetXaxis()->SetLimits(xl, xh);
+		gComb.GetXaxis()->SetLimits(xl, xh);
 		gAsym.GetXaxis()->SetLimits(xl, xh);
 		gStat.GetXaxis()->SetLimits(xl, xh);
 	}
@@ -501,6 +553,19 @@ public:
 			ey.push_back(gSyst.GetEY()[i]);
 		}
 		gSyst = TGraphErrors(vx.size(), &vx[0], &vy[0], &ex[0], &ey[0]);
+
+		vx.clear();
+		vy.clear();
+		ex.clear();
+		ey.clear();
+		for(int i=0; i<gComb.GetN(); i++) {
+			if(gComb.GetX()[i]<xl || gComb.GetX()[i]>=xh) continue;
+			vx.push_back(gComb.GetX()[i]);
+			vy.push_back(gComb.GetY()[i]);
+			ex.push_back(gComb.GetEX()[i]);
+			ey.push_back(gComb.GetEY()[i]);
+		}
+		gComb = TGraphErrors(vx.size(), &vx[0], &vy[0], &ex[0], &ey[0]);
 
 		vx.clear();
 		vy.clear();
@@ -536,9 +601,15 @@ public:
 		IsHoldForDraw = true;
 	}
 
-	void DrawStat(TString opt = "") {
+	void DrawStat(TString opt = "PL same") {
 		if(!IsUpdated && !IsHoldForDraw) Calc();
-		gStat.Draw("PL"+opt+" same");
+		//gStat.Draw("PL"+opt+" same");
+		gStat.Draw(opt);
+	}
+
+	void DrawComb(TString opt = "PL same") {
+		if(!IsUpdated && !IsHoldForDraw) Calc();
+		gComb.Draw(opt);
 	}
 
 	void DrawSyst(TString opt = "") {
@@ -565,22 +636,44 @@ public:
 		gStat.Draw(optstat);
 	}
 
-	void MakePlot(TString name, TH2D* hFrame, TString StrPath="systplot") {
+	void MakePlot(TString name, TH2D* hFrame, TString StrPath="systplot", vector<TString> FileType = vector<TString>{"pdf"}) {
 		ShiftX();
-		TCanvas *cTmp = new TCanvas(name, name);
-		hFrame->Draw();
+
+		int vcol[10] = {2, 3, 4, kOrange, 6, 7, 8, 9, 16, 28};
+		int vmrk[10] = {20, 24, 21, 25, 22, 26, 23, 32, 29, 30};
+		// support 100 variations
+
+		int nvar = Var.size();
+		int ncln = nvar / 20 + 1;
+		if(nvar==0) ncln = 0;
+		int wpxl = 700 + ncln*175;
+		int hpxl = 500;
+		TCanvas *cTmp = new TCanvas("SystPlot"+name, "SystPlot"+name, wpxl,hpxl);
+		gPad->SetLeftMargin(0.18*700/wpxl);
+		gPad->SetRightMargin((0.04*700+ncln*175)/wpxl);
+		gPad->SetTopMargin(0.10);
+		gPad->SetBottomMargin(0.16);
+
 		double xl = hFrame->GetXaxis()->GetXmin();
 		double xh = hFrame->GetXaxis()->GetXmax();
 		double yl = hFrame->GetYaxis()->GetXmin();
 		double yh = hFrame->GetYaxis()->GetXmax();
+		TH2D *hFrameTmp = new TH2D("SystPlotFrame"+name, "SystPlotFrame"+name, 100,xl,xh, 100,yl,yh);
+		hFrameTmp->GetXaxis()->SetTitle(hFrame->GetXaxis()->GetTitle());
+		hFrameTmp->GetYaxis()->SetTitle(hFrame->GetYaxis()->GetTitle());
+		hFrameTmp->GetYaxis()->SetTitleOffset(1.0/wpxl*700);
+		hFrameTmp->Draw();
+
 		TLine *lineTmp;
 		if(yl<0 && yh>0) { lineTmp = new TLine(xl,0, xh,0); lineTmp->SetLineColor(kGray); lineTmp->Draw("same"); }
 		if(yl<1 && yh>1) { lineTmp = new TLine(xl,1, xh,1); lineTmp->SetLineColor(kGray); lineTmp->Draw("same"); }
+
 		TGraphErrors gTmp = gStat;
 		gTmp.SetLineColor(kBlack);
 		gTmp.SetMarkerColor(kBlack);
 		gTmp.SetMarkerStyle(20);
 		gTmp.Draw("PL same");
+
 		double bw = fabs(xh-xl) / (gTmp.GetN()+1.0);
 		for(int i=1; i<gTmp.GetN(); i++) {
 			double tmpbw = fabs(gTmp.GetX()[i]-gTmp.GetX()[i-1]);
@@ -590,13 +683,14 @@ public:
 				bw = bw<tmpbw?bw:tmpbw;
 			}
 		}
-		double ldy = (Var.size()+1)/2*0.05;
-		TLegend *lTmp = new TLegend(0.20,0.88-ldy,0.95,0.88);
+
+		TLegend *lTmp = new TLegend(700.0/wpxl,0.01, 1-0.01*hpxl/wpxl,0.99);
 		lTmp->SetFillStyle(0);
-		lTmp->SetBorderSize(0);
-		lTmp->SetNColumns(2);
+		lTmp->SetBorderSize(1);
+		lTmp->SetNColumns(ncln);
 		lTmp->SetTextSize(0.04);
 		lTmp->AddEntry(&gTmp, "default", "lp");
+
 		int nsx = (int)Var.size() + 2;
 		int isx = 1;
 		int i = 0;
@@ -609,9 +703,11 @@ public:
 			TGraphErrors &gVar = pg.g.Graph;
 			for(int j=0; j<gTmp.GetN(); j++) gVar.GetX()[j] += sw*bw*isx/nsx;
 			isx++;
-			gVar.SetMarkerStyle(24+i);
-			//int col = i==3?kOrange+1:(i<8?i+2:i+3);
-			int col = i==3?kOrange+1:(i<8?i+2:(i<13?i+3:i+10));
+			int col = vcol[i%10];
+			int imrk = i / 10;
+			while(imrk>=10) imrk /= 10;
+			int mrk = vmrk[imrk];
+			gVar.SetMarkerStyle(mrk);
 			gVar.SetMarkerColor(col);
 			gVar.SetLineColor(col);
 			gVar.Draw("P same");
@@ -620,11 +716,11 @@ public:
 		}
 		lTmp->Draw("same");
 		gPad->SetTicks();
-		cTmp->SaveAs(StrPath+"/"+name+".pdf");
+		for(int i=0; i<FileType.size(); i++) cTmp->SaveAs(StrPath+"/Syst"+name+"."+FileType[i]);
 		delete cTmp;
 	}
 
-	void MakePlot(TString name="", TString StrPath="systplot") {
+	void MakePlot(TString name="", TString StrPath="systplot", vector<TString> FileType = vector<TString>{"pdf"}) {
 		TString tmpname = name;
 		if(tmpname=="") tmpname = gStat.GetName();
 		int n = gStat.GetN();
@@ -644,10 +740,143 @@ public:
 		yh = yh + 0.15*yw;
 		xw = xh - xl;
 		yw = yh - yl;
-		TH2D *hTmpFrame = new TH2D(name+"Frame", name+"Frame", 100,xl,xh, 100,yl,yh);
+		TH2D *hTmpFrame = new TH2D("FramePlot"+name, "FramePlot"+name, 100,xl,xh, 100,yl,yh);
 		hTmpFrame->GetXaxis()->SetTitle(gStat.GetXaxis()->GetTitle());
 		hTmpFrame->GetYaxis()->SetTitle(gStat.GetYaxis()->GetTitle());
-		MakePlot(tmpname, hTmpFrame, StrPath);
+		MakePlot(tmpname, hTmpFrame, StrPath, FileType);
+		delete hTmpFrame;
+	}
+
+	void MakeHist(TString name, TH2D* hFrame, bool ispercent=false, TString StrPath="systplot", vector<TString> FileType = vector<TString>{"pdf"}) {
+		ShiftX();
+
+		if(ispercent) name = name+"Percent";
+
+		int vcol[10] = {2, 3, 4, kOrange, 6, 7, 8, 9, 16, 28};
+		int vfls[10] = {1001, 3001, 3002, 3004, 3244, 3003, 3344, 3345, 3444, 3354};
+		// support 100 variations
+
+		int nvar = Var.size();
+		int ncln = nvar / 20 + 1;
+		int wpxl = 700 + ncln*175;
+		int hpxl = 500;
+		TCanvas *cTmp = new TCanvas("SystHist"+name, "SystHist"+name, wpxl,hpxl);
+		gPad->SetLeftMargin(0.18*700/wpxl);
+		gPad->SetRightMargin((0.04*700+ncln*175)/wpxl);
+		gPad->SetTopMargin(0.10);
+		gPad->SetBottomMargin(0.16);
+
+		double xl = hFrame->GetXaxis()->GetXmin();
+		double xh = hFrame->GetXaxis()->GetXmax();
+		TString xtitle = TString(hFrame->GetXaxis()->GetTitle());
+		TString ytitle = TString(hFrame->GetYaxis()->GetTitle()) + Form(": syst^{2}");
+		if(ispercent) ytitle = ytitle + Form(" (%%)");
+
+		TGraphErrors gTmp = gStat;
+		gTmp.SetLineColor(kBlack);
+		gTmp.SetMarkerColor(kBlack);
+		gTmp.SetMarkerStyle(20);
+		gTmp.Draw("PL same");
+
+		int nBin = gTmp.GetN();
+		if(nBin<=0) return;
+		double bw = fabs(xh-xl) / (nBin+1.0);
+		for(int i=1; i<nBin; i++) {
+			double tmpbw = fabs(gTmp.GetX()[i]-gTmp.GetX()[i-1]);
+			if(i==1) {
+				bw = tmpbw;
+			} else {
+				bw = bw<tmpbw?bw:tmpbw;
+			}
+		}
+		bool isgoodxedge = true;
+		vector<double> xcenter;
+		for(int i=0; i<nBin; i++) xcenter.push_back(gTmp.GetX()[i]);
+		std::sort(xcenter.begin(), xcenter.end());
+		double xedge[nBin+1];
+		xedge[0] = xl;
+		for(int i=0; i<nBin; i++) {
+			xedge[i+1] = xedge[i] + (xcenter[i] - xedge[i])*2;
+			if(xedge[i+1] <= xedge[i]) isgoodxedge = false;
+		}
+		if(!isgoodxedge) {
+			xedge[0] = xcenter[0] - 0.5*bw;
+			for(int i=0; i<nBin; i++) xedge[i+1] = xcenter[i] + 0.5*bw;
+		}
+
+		TLegend *lTmp = new TLegend(700.0/wpxl,0.01, 1-0.01*hpxl/wpxl,0.99);
+		lTmp->SetFillStyle(0);
+		lTmp->SetBorderSize(1);
+		lTmp->SetNColumns(ncln);
+		lTmp->SetTextSize(0.04);
+
+		vector<int> list = GetList();
+		TBox syBox[nBin][syVar.size()];
+		double syMax = 0;
+		for(int j=0; j<nBin; j++) {
+			double syBin = 0;
+			//for(int i=0; i<syVar.size(); i++) {
+			for(int i=syVar.size()-1; i>=0; i--) {
+				double tmpvalue = syVar[i][j];
+				double ttlvalue = pow(gSyst.GetEY()[j],2);
+				if(ispercent && ttlvalue!=0) tmpvalue = 100 * tmpvalue / ttlvalue;
+				syBox[j][i] = TBox(xedge[j],syBin, xedge[j+1],syBin+tmpvalue);
+				syBin += tmpvalue;
+				int col = vcol[i%10];
+				int ifls = i / 10;
+				while(ifls>=10) ifls /= 10;
+				int fls = vfls[ifls];
+				syBox[j][i].SetLineColor(col);
+				syBox[j][i].SetFillStyle(fls);
+				syBox[j][i].SetFillColor(col);
+			}
+			if(syBin>syMax) syMax = syBin;
+		}
+
+		TH2D *hFrameTmp = new TH2D("SystHistFrame"+name, "SystHistFrame"+name, 100,xl,xh, 100,0,syMax);
+		hFrameTmp->GetXaxis()->SetTitle(xtitle);
+		hFrameTmp->GetYaxis()->SetTitle(ytitle);
+		hFrameTmp->GetYaxis()->SetTitleOffset(1.0/wpxl*700);
+		hFrameTmp->Draw();
+
+		for(int i=0; i<syVar.size(); i++) lTmp->AddEntry(&(syBox[0][i]), Var[list[i]].s, "f");
+		for(int j=0; j<nBin; j++) {
+			for(int i=0; i<syVar.size(); i++) {
+				syBox[j][i].Draw();
+			}
+		}
+
+		lTmp->Draw("same");
+
+		gPad->SetTicks();
+		for(int i=0; i<FileType.size(); i++) cTmp->SaveAs(StrPath+"/Syst"+name+"Hist."+FileType[i]);
+		delete cTmp;
+	}
+
+	void MakeHist(TString name="", bool ispercent=false, TString StrPath="systplot", vector<TString> FileType = vector<TString>{"pdf"}) {
+		TString tmpname = name;
+		if(tmpname=="") tmpname = gStat.GetName();
+		int n = gStat.GetN();
+		double xl = TMath::MinElement(n, gStat.GetX());
+		double xh = TMath::MaxElement(n, gStat.GetX());
+		double yl = TMath::MinElement(n, gStat.GetY());
+		double yh = TMath::MaxElement(n, gStat.GetY());
+		double xw = xh - xl;
+		double yw = yh - yl;
+		if(n==1) {
+			xw = 10;
+			yw = 40*gStat.GetEY()[0];
+		}
+		xl = xl - 0.05*xw;
+		xh = xh + 0.05*xw;
+		yl = yl - 0.05*yw;
+		yh = yh + 0.15*yw;
+		xw = xh - xl;
+		yw = yh - yl;
+		TH2D *hTmpFrame = new TH2D("FramePlot"+name, "FramePlot"+name, 100,xl,xh, 100,yl,yh);
+		hTmpFrame->GetXaxis()->SetTitle(gStat.GetXaxis()->GetTitle());
+		hTmpFrame->GetYaxis()->SetTitle(gStat.GetYaxis()->GetTitle());
+		MakeHist(tmpname, hTmpFrame, StrPath, ispercent, FileType);
 		delete hTmpFrame;
 	}
 
@@ -697,6 +926,10 @@ public:
 			sg.SetVar(idx, pg);
 		}
 		return sg;
+	}
+
+	const MySystGraph SelectBin(int bl) const {
+		return SelectBin(bl, bl);
 	}
 
 	const MySystGraph MergeUnce() {
@@ -1102,6 +1335,16 @@ public:
 		if(isstat) gStat.Write(name+"Stat");
 		if(issyst) gSyst.Write(name+"Syst");
 		if(isasym) gAsym.Write(name+"Asym");
+	}
+
+	void WriteDefVar(TString name="") {
+		if(!Def.GetIsUpdated()) Def.Calc();
+		Def.Graph.Write(name+"Def");
+		for(auto it=Var.begin(); it!=Var.end(); it++) {
+			TString StrSyst = Form("Syst%d", it->first);
+			if(!it->second.g.GetIsUpdated()) it->second.g.Calc();
+			it->second.g.Graph.Write(name+StrSyst);
+		}
 	}
 };
 

@@ -12,6 +12,7 @@
 #include <sstream>
 #include <string>
 #include <cmath>
+#include "MyValuErrs.h"
 
 
 class MyDualNumber
@@ -43,80 +44,89 @@ public:
 
 	void Print() const { std::cout << "(" << Valu << ", " << Dual << ")" << std::endl; }
 
-	std::string StrLatex(double &outval, double &outerr, int &outn10, int &outnp, string symboltype = "R") const {
+	static std::string StrLatex(double val, double err, std::string opt="R") {
 		// symboltype = "R" -- ROOT; "L" -- "Latex"
-		int n10;
-		double val, err;
-
-		if(Valu==0 && Dual==0) {
-			n10 = 0;
-			val = 0;
-			err = 0;
-		} else if(Valu==0) {
-			n10 = (int)log10(fabs(Dual));
-			if(fabs(Dual)<1.0) n10--;
-			val = 0;
-			err = fabs(Dual) * pow(10.0, -1.0*n10);
-		} else if(Dual==0) {
-			n10 = (int)log10(fabs(Valu));
-			if(fabs(Valu)<1.0) n10--;
-			val = Valu * pow(10.0, -1.0*n10);
-			err = 0;
-		} else {
-			n10 = (int)log10(fabs(Dual));
-			if(fabs(Dual)<1.0) n10--;
-			val = Valu * pow(10.0, -1.0*n10);
-			err = fabs(Dual) * pow(10.0, -1.0*n10);
-		}
-
-		int np = 1;
-		if(err>=3.5) {
-			n10++;
-			val *= 0.1;
-			err *= 0.1;
-		}
-
-		int v10 = (int)log10(fabs(val));
-		if(fabs(val)<1.0) v10--;
-		if(v10>=1) {
-			n10 += v10;
-			val *= pow(10.0, -1.0*v10);
-			err *= pow(10.0, -1.0*v10);
-			np  += v10;
-		}
-
-		outn10 = n10;
-		outval = val;
-		outerr = err;
-		outnp  = np;
-
-		std::stringstream strval;
-		std::stringstream strerr;
-		strval << std::fixed << std::setprecision(np) << val;
-		strerr << std::fixed << std::setprecision(np) << err;
-		std::stringstream strlatex;
-		if(n10==0) {
-			if(symboltype=="L") {
-				strlatex << strval.str() << "\\pm" << strerr.str();
-			} else {
-				strlatex << strval.str() << "#pm" << strerr.str();
-			}
-		} else {
-			if(symboltype=="L") {
-				strlatex << "(" << strval.str() << "\\pm" << strerr.str() << ")\\times10^{" << n10 << "}";
-			} else {
-				strlatex << "(" << strval.str() << "#pm" << strerr.str() << ")#times10^{" << n10 << "}";
-			}
-		}
-
-		return strlatex.str();
+		return MyValuErrs(val, err).PrintErr1(opt);
 	}
 
-	std::string StrLatex(string symboltype="R") const {
-		int outn10, outnp;
-		double outval, outerr;
-		return StrLatex(outval, outerr, outn10, outnp, symboltype);
+	std::string StrLatex(string opt="R") const {
+		return StrLatex(Valu, Dual, opt);
 	}
+
+//	std::string StrLatex(double &outval, double &outerr, int &outn10, int &outnp, string symboltype = "R") const {
+//		// symboltype = "R" -- ROOT; "L" -- "Latex"
+//		int n10;
+//		double val, err;
+//
+//		if(Valu==0 && Dual==0) {
+//			n10 = 0;
+//			val = 0;
+//			err = 0;
+//		} else if(Valu==0) {
+//			n10 = (int)log10(fabs(Dual));
+//			if(fabs(Dual)<1.0) n10--;
+//			val = 0;
+//			err = fabs(Dual) * pow(10.0, -1.0*n10);
+//		} else if(Dual==0) {
+//			n10 = (int)log10(fabs(Valu));
+//			if(fabs(Valu)<1.0) n10--;
+//			val = Valu * pow(10.0, -1.0*n10);
+//			err = 0;
+//		} else {
+//			n10 = (int)log10(fabs(Dual));
+//			if(fabs(Dual)<1.0) n10--;
+//			val = Valu * pow(10.0, -1.0*n10);
+//			err = fabs(Dual) * pow(10.0, -1.0*n10);
+//		}
+//
+//		int np = 1;
+//		if(err>=3.5) {
+//			n10++;
+//			val *= 0.1;
+//			err *= 0.1;
+//		}
+//
+//		int v10 = (int)log10(fabs(val));
+//		if(fabs(val)<1.0) v10--;
+//		if(v10>=1) {
+//			n10 += v10;
+//			val *= pow(10.0, -1.0*v10);
+//			err *= pow(10.0, -1.0*v10);
+//			np  += v10;
+//		}
+//
+//		outn10 = n10;
+//		outval = val;
+//		outerr = err;
+//		outnp  = np;
+//
+//		std::stringstream strval;
+//		std::stringstream strerr;
+//		strval << std::fixed << std::setprecision(np) << val;
+//		strerr << std::fixed << std::setprecision(np) << err;
+//		std::stringstream strlatex;
+//		if(n10==0) {
+//			if(symboltype=="L") {
+//				strlatex << strval.str() << "\\pm" << strerr.str();
+//			} else {
+//				strlatex << strval.str() << "#pm" << strerr.str();
+//			}
+//		} else {
+//			if(symboltype=="L") {
+//				strlatex << "(" << strval.str() << "\\pm" << strerr.str() << ")\\times10^{" << n10 << "}";
+//			} else {
+//				strlatex << "(" << strval.str() << "#pm" << strerr.str() << ")#times10^{" << n10 << "}";
+//			}
+//		}
+//
+//		return strlatex.str();
+//	}
+//
+//	std::string StrLatex(string symboltype="R") const {
+//		int outn10, outnp;
+//		double outval, outerr;
+//		return StrLatex(outval, outerr, outn10, outnp, symboltype);
+//	}
 };
 
 
