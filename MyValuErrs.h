@@ -87,6 +87,11 @@ public:
 			exponent = err_e;
 			error = err_c;
 			precision = 1;
+		} else if(fabs(err_c)<3.5) {
+			value = val_c * std::pow(10.0, val_e-err_e);
+			exponent = err_e;
+			error = err_c;
+			precision = 1;
 		} else {
 			value = val_c * std::pow(10.0, val_e-err_e);
 			exponent = err_e;

@@ -98,6 +98,11 @@ public:
 	TGraphErrors gComb;
 	TGraphAsymmErrors gAsym;
 
+	TGraphErrors GetStat() { CalcIfNotUpdated(); return gStat;}
+	TGraphErrors GetSyst() { CalcIfNotUpdated(); return gSyst;}
+	TGraphErrors GetComb() { CalcIfNotUpdated(); return gComb;}
+	TGraphAsymmErrors GetAsym() { CalcIfNotUpdated(); return gAsym; }
+
 	static int VidNow; // the latest index
 	static const int VidMax = 1000000; // maximal index
 
@@ -223,8 +228,8 @@ public:
 		}
 		TGraphErrors gl(n, Def.Graph.GetX(), tmpyl, Def.Graph.GetEX(), Def.Graph.GetEY());
 		TGraphErrors gh(n, Def.Graph.GetX(), tmpyh, Def.Graph.GetEX(), Def.Graph.GetEY());
-		MyPackGraph pgl(gl, ss+" syst. d-s", 0.5, 1);
-		MyPackGraph pgh(gh, ss+" syst. d+s", 0.5, 1);
+		MyPackGraph pgl(gl, ss+" d-s", 0.5, 1);
+		MyPackGraph pgh(gh, ss+" d+s", 0.5, 1);
 		AddVar(idxl, pgl);
 		AddVar(idxh, pgh);
 	} 
@@ -279,7 +284,7 @@ public:
 		return Var;
 	}
 
-	void Calc() {
+	void Calc(std::vector<int> vidlist) {
 		int n = Def.GetN();
 		double sx[n];
 		double sy[n];
@@ -294,9 +299,13 @@ public:
 		syVar.clear();
 		sylVar.clear();
 		syhVar.clear();
-		for(auto it=Var.begin(); it!=Var.end(); it++) {
-			const int &idx = it->first;
-			MyPackGraph &pg = it->second;
+//		for(auto it=Var.begin(); it!=Var.end(); it++) {
+//			const int &idx = it->first;
+//			MyPackGraph &pg = it->second;
+		for(int j=0; j<vidlist.size(); j++) {
+			int idx = vidlist[j];
+			if(!CheckVar(idx)) continue;
+			MyPackGraph pg = Var[idx];
 			if(!pg.g.GetIsUpdated()) pg.g.Calc();
 			if(!pg.g.CheckSize(n)) return;
 			vector<double> sylVarOne;
@@ -346,6 +355,10 @@ public:
 		IsUpdated = true;
 	}
 
+	void Calc() {
+		Calc(GetList());
+	}
+
 	void CalcIfNotUpdated() {
 		if(!IsUpdated) Calc();
 	}
@@ -353,136 +366,29 @@ public:
 	TString StrLatex(int i=0, std::string symboltype="R") {
 		if(!Def.CheckIndex(i)) return TString();
 		if(!IsUpdated) Calc();
-
 		MyValuErrs ve(gStat.GetY()[i], gStat.GetEY()[i], gSyst.GetEY()[i]);
 		return TString(ve.PrintErr2(symboltype));
+	}
 
-//		double e_val, e_err;
-//		int e_n10, e_np;
-//		MyDualNumber e_dn(gStat.GetY()[i], gStat.GetEY()[i]);
-//		e_dn.StrLatex(e_val, e_err, e_n10, e_np);
-//
-//		double s_val, s_err;
-//		int s_n10, s_np;
-//		MyDualNumber s_dn(gSyst.GetY()[i], gSyst.GetEY()[i]);
-//		s_dn.StrLatex(s_val, s_err, s_n10, s_np);
-//
-//		double val, err, sys;
-//		int n10, np;
-//		//if(s_n10 < e_n10) {
-//		if(gSyst.GetEY()[i] < gStat.GetEY()[i] && gSyst.GetEY()[i] != 0) {
-//			val = s_val;
-//			err = e_err * pow(10.0, 1.0*(e_n10-s_n10));
-//			sys = s_err;
-//			n10 = s_n10;
-//			np = s_np;
-//		} else {
-//			val = e_val;
-//			err = e_err;
-//			sys = s_err * pow(10.0, 1.0*(s_n10-e_n10));
-//			n10 = e_n10;
-//			np = e_np;
-//		}
-//
-//		std::stringstream strval;
-//		std::stringstream strerr;
-//		std::stringstream strsys;
-//		strval << std::fixed << std::setprecision(np) << val;
-//		strerr << std::fixed << std::setprecision(np) << err;
-//		strsys << std::fixed << std::setprecision(np) << sys;
-//		std::stringstream strlatex;
-//		if(n10==0) {
-//			if(symboltype=="L") {
-//				strlatex << strval.str() << "\\pm" << strerr.str() << "\\pm" << strsys.str();
-//			} else {
-//				strlatex << strval.str() << "#pm" << strerr.str() << "#pm" << strsys.str();
-//			}
-//		} else {
-//			if(symboltype=="L") {
-//				strlatex << "(" << strval.str() << "\\pm" << strerr.str() << "\\pm" << strsys.str() << ")\\times10^{" << n10 << "}";
-//			} else {
-//				strlatex << "(" << strval.str() << "#pm" << strerr.str() << "#pm" << strsys.str() << ")#times10^{" << n10 << "}";
-//			}
-//		}
-//		TString tstrlatex = strlatex.str();
-//
-//		return tstrlatex;
+	MyValuErrs ValuStatSyst(int i=0) {
+		if(!Def.CheckIndex(i)) return MyValuErrs();
+		if(!IsUpdated) Calc();
+		MyValuErrs ve(gStat.GetY()[i], gStat.GetEY()[i], gSyst.GetEY()[i]);
+		return ve;
 	}
 
 	TString StrLatexAsym(int i=0, std::string symboltype="R") {
 		if(!Def.CheckIndex(i)) return TString();
 		if(!IsUpdated) Calc();
-
 		MyValuErrs ve(gStat.GetY()[i], gStat.GetEY()[i], gAsym.GetEYlow()[i], gAsym.GetEYhigh()[i]);
 		return TString(ve.PrintErr3(symboltype));
+	}
 
-//		double e_val, e_err;
-//		int e_n10, e_np;
-//		MyDualNumber e_dn(gStat.GetY()[i], gStat.GetEY()[i]);
-//		e_dn.StrLatex(e_val, e_err, e_n10, e_np);
-//
-//		double sl_val, sl_err;
-//		int sl_n10, sl_np;
-//		MyDualNumber sl_dn(gAsym.GetY()[i], gAsym.GetEYlow()[i]);
-//		sl_dn.StrLatex(sl_val, sl_err, sl_n10, sl_np);
-//
-//		double sh_val, sh_err;
-//		int sh_n10, sh_np;
-//		MyDualNumber sh_dn(gAsym.GetY()[i], gAsym.GetEYhigh()[i]);
-//		sh_dn.StrLatex(sh_val, sh_err, sh_n10, sh_np);
-//
-//		double val, err, syl, syh;
-//		int n10, np;
-//		//if(sl_n10 < e_n10 && sl_n10 < sh_n10) {
-//		if(gAsym.GetEYlow()[i] < gStat.GetEY()[i] && (gAsym.GetEYlow()[i] < gAsym.GetEYhigh()[i] || gAsym.GetEYhigh()[i] == 0) && gAsym.GetEYlow()[i] > 0) {
-//			val = sl_val;
-//			err = e_err * pow(10.0, 1.0*(e_n10-sl_n10));
-//			syl = sl_err;
-//			syh = sh_err * pow(10.0, 1.0*(sh_n10-sl_n10));
-//			n10 = sl_n10;
-//			np = sl_np;
-//		//} else if(sh_n10 < e_n10 && sh_n10 < sl_n10) {
-//		} else if(gAsym.GetEYhigh()[i] < gStat.GetEY()[i] && (gAsym.GetEYhigh()[i] < gAsym.GetEYlow()[i] || gAsym.GetEYlow()[i] == 0) && gAsym.GetEYhigh()[i] > 0) {
-//			val = sh_val;
-//			err = e_err * pow(10.0, 1.0*(e_n10-sh_n10));
-//			syl = sl_err * pow(10.0, 1.0*(sl_n10-sh_n10));
-//			syh = sh_err;
-//			n10 = sh_n10;
-//			np = sh_np;
-//		} else {
-//			val = e_val;
-//			err = e_err;
-//			syl = sl_err * pow(10.0, 1.0*(sl_n10-e_n10));
-//			syh = sh_err * pow(10.0, 1.0*(sh_n10-e_n10));
-//			n10 = e_n10;
-//			np = e_np;
-//		}
-//
-//		std::stringstream strval;
-//		std::stringstream strerr;
-//		std::stringstream strsyl;
-//		std::stringstream strsyh;
-//		strval << std::fixed << std::setprecision(np) << val;
-//		strerr << std::fixed << std::setprecision(np) << err;
-//		strsyl << std::fixed << std::setprecision(np) << syl;
-//		strsyh << std::fixed << std::setprecision(np) << syh;
-//		std::stringstream strlatex;
-//		if(n10==0) {
-//			if(symboltype=="L") {
-//				strlatex << strval.str() << "\\pm" << strerr.str() << "_{-" << strsyl.str() << "}^{+" << strsyh.str() << "}";
-//			} else {
-//				strlatex << strval.str() << "#pm" << strerr.str() << "_{-" << strsyl.str() << "}^{+" << strsyh.str() << "}";
-//			}
-//		} else {
-//			if(symboltype=="L") {
-//				strlatex << "(" << strval.str() << "\\pm" << strerr.str() << "_{-" << strsyl.str() << "}^{+" << strsyh.str() << "})\\times10^{" << n10 << "}";
-//			} else {
-//				strlatex << "(" << strval.str() << "#pm" << strerr.str() << "_{-" << strsyl.str() << "}^{+" << strsyh.str() << "})#times10^{" << n10 << "}";
-//			}
-//		}
-//		TString tstrlatex = strlatex.str();
-//
-//		return tstrlatex;
+	MyValuErrs ValuStatAsym(int i=0) {
+		if(!Def.CheckIndex(i)) return MyValuErrs();
+		if(!IsUpdated) Calc();
+		MyValuErrs ve(gStat.GetY()[i], gStat.GetEY()[i], gAsym.GetEYlow()[i], gAsym.GetEYhigh()[i]);
+		return ve;
 	}
 
 	void ShiftX() {
@@ -810,7 +716,7 @@ public:
 		lTmp->SetNColumns(ncln);
 		lTmp->SetTextSize(0.04);
 
-		vector<int> list = GetList();
+		std::vector<int> list = GetList();
 		TBox syBox[nBin][syVar.size()];
 		double syMax = 0;
 		for(int j=0; j<nBin; j++) {
@@ -1103,7 +1009,7 @@ public:
 		PrintAsym(width);
 	}
 
-	void Table() {
+	void Table(bool isHeader=true) {
 		if(!IsUpdated) Calc();
 		TString tn = " & ";
 		TString header = Sn("x-value") + tn + Sn("y-value") + tn + Sn("y-error");
@@ -1157,15 +1063,15 @@ public:
 			number[i] = number[i] + tn + Sn(Form("-%.2g+%.2g", syl[i], syh[i]), 32) + tn + Sn(Form("%.2g",sy[i]));
 		}
 
-		std::cout << header << " \\\\ \\hline" << std::endl;
-		std::cout << weight << " \\\\ \\hline" << std::endl;
+		if(isHeader) std::cout << header << " \\\\ \\hline" << std::endl;
+		if(isHeader) std::cout << weight << " \\\\ \\hline" << std::endl;
 		for(int i=0; i<n; i++) {
 			std::cout << number[i] << " \\\\ " << std::endl;
 		}
 		std::cout << "\\hline" << std::endl;
 	}
 
-	void TableErr(bool isInline = false) {
+	void TableErr(bool isHeader=true, bool isInline = false) {
 		if(!IsUpdated) Calc();
 		TString tn = " & ";
 		TString header = Sn("x-value") + tn + Sn("y-value") + tn + Sn("y-error");
@@ -1228,8 +1134,8 @@ public:
 			numerr[i] = numerr[i] + tn + Sn(Form("$\\pm$%.2g",sy[i]));
 		}
 
-		std::cout << header << " \\\\ \\hline" << std::endl;
-		std::cout << weight << " \\\\ \\hline" << std::endl;
+		if(isHeader) std::cout << header << " \\\\ \\hline" << std::endl;
+		if(isHeader) std::cout << weight << " \\\\ \\hline" << std::endl;
 		for(int i=0; i<n; i++) {
 			if(isInline) {
 				std::cout << numerr[i] << " \\\\ \\hline" << std::endl;
